@@ -1,4 +1,4 @@
-module github.com/milvus-io/milvus
+module github.com/milvus-io/milvus/v3
 
 go 1.18
 
