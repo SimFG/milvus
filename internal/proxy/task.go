@@ -1330,6 +1330,7 @@ type loadCollectionTask struct {
 	queryCoord types.QueryCoord
 	datacoord  types.DataCoord
 	result     *commonpb.Status
+	chMgr      channelsMgr
 
 	collectionID UniqueID
 }
@@ -1454,7 +1455,23 @@ func (lct *loadCollectionTask) Execute(ctx context.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("call query coordinator LoadCollection: %s", err)
 	}
-	return nil
+
+	baseMQMsg, err := GetBaseMQMsg(ctx, lct.collectionID, lct.chMgr)
+	if err != nil {
+		return err
+	}
+	msgPack := &msgstream.MsgPack{
+		BeginTs: lct.BeginTs(),
+		EndTs:   lct.EndTs(),
+		Msgs: []msgstream.TsMsg{
+			&msgstream.LoadCollectionMsg{
+				BaseMsg:               *baseMQMsg,
+				LoadCollectionRequest: *lct.LoadCollectionRequest,
+			},
+		},
+	}
+	err = SendMsgPack(ctx, lct.collectionID, lct.chMgr, msgPack)
+	return err
 }
 
 func (lct *loadCollectionTask) PostExecute(ctx context.Context) error {
@@ -1547,6 +1564,26 @@ func (rct *releaseCollectionTask) Execute(ctx context.Context) (err error) {
 	rct.result, err = rct.queryCoord.ReleaseCollection(ctx, request)
 
 	globalMetaCache.RemoveCollection(ctx, rct.GetDbName(), rct.CollectionName)
+
+	if err != nil {
+		return err
+	}
+
+	baseMQMsg, err := GetBaseMQMsg(ctx, rct.collectionID, rct.chMgr)
+	if err != nil {
+		return err
+	}
+	msgPack := &msgstream.MsgPack{
+		BeginTs: rct.BeginTs(),
+		EndTs:   rct.EndTs(),
+		Msgs: []msgstream.TsMsg{
+			&msgstream.ReleaseCollectionMsg{
+				BaseMsg:                  *baseMQMsg,
+				ReleaseCollectionRequest: *rct.ReleaseCollectionRequest,
+			},
+		},
+	}
+	err = SendMsgPack(ctx, rct.collectionID, rct.chMgr, msgPack)
 
 	return err
 }
