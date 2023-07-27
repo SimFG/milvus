@@ -19,6 +19,7 @@ package sessionutil
 import (
 	"context"
 	"encoding/json"
+	"expvar"
 	"fmt"
 	"path"
 	"strconv"
@@ -1015,4 +1016,10 @@ func (s *Session) ProcessActiveStandBy(activateFunc func() error) error {
 		return activateFunc()
 	}
 	return nil
+}
+
+func (s *Session) Monitor(expMap *expvar.Map) {
+	expMap.Set("session", expvar.Func(func() interface{} {
+		return s
+	}))
 }

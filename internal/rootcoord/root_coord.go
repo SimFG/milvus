@@ -26,6 +26,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/milvus-io/milvus/internal/util/monitor"
+
 	"github.com/cockroachdb/errors"
 	"github.com/samber/lo"
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -295,6 +297,7 @@ func (c *Core) Register() error {
 			}
 		}
 	})
+	c.session.Monitor(monitor.RootCoord)
 
 	return nil
 }

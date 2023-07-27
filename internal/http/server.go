@@ -17,18 +17,20 @@
 package http
 
 import (
+	_ "expvar"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
 
-	"go.uber.org/zap"
+	"github.com/milvus-io/milvus/internal/util/monitor"
 
 	"github.com/milvus-io/milvus/internal/http/healthz"
 	"github.com/milvus-io/milvus/pkg/eventlog"
 	"github.com/milvus-io/milvus/pkg/log"
 	"github.com/milvus-io/milvus/pkg/util/paramtable"
+	"go.uber.org/zap"
 )
 
 const (
@@ -58,6 +60,8 @@ func registerDefaults() {
 		Path:    EventLogRouterPath,
 		Handler: eventlog.Handler(),
 	})
+
+	monitor.RegisterMonitor()
 }
 
 func Register(h *Handler) {

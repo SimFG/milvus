@@ -1,6 +1,7 @@
 package milvus
 
 import (
+	"expvar"
 	"flag"
 	"fmt"
 	"io"
@@ -152,6 +153,14 @@ func (c *run) printBanner(w io.Writer) {
 	fmt.Fprintln(w, "GitCommit: "+GitCommit)
 	fmt.Fprintln(w, "GoVersion: "+GoVersion)
 	fmt.Fprintln(w)
+	expvar.Publish("MilvusInfo", expvar.Func(func() interface{} {
+		return map[string]string{
+			"Version":   BuildTags,
+			"GitCommit": GitCommit,
+			"BuildTime": BuildTime,
+			"GoVersion": GoVersion,
+		}
+	}))
 }
 
 func (c *run) injectVariablesToEnv() {

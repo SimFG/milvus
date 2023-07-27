@@ -27,6 +27,8 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/milvus-io/milvus/internal/util/monitor"
+
 	"github.com/cockroachdb/errors"
 	"github.com/milvus-io/milvus/internal/allocator"
 	"github.com/milvus-io/milvus/internal/util/dependency"
@@ -153,6 +155,7 @@ func (node *Proxy) Register() error {
 			}
 		}
 	})
+	node.session.Monitor(monitor.Proxy)
 	// TODO Reset the logger
 	//Params.initLogCfg()
 	return nil
