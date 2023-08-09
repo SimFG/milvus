@@ -301,6 +301,7 @@ func (c *Core) Register() error {
 
 func (c *Core) SetAddress(address string) {
 	c.address = address
+	log.Info(fmt.Sprintf("address point: %p\n", &c.address), zap.String("address", address))
 }
 
 // SetEtcdClient sets the etcdCli of Core

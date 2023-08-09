@@ -22,6 +22,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"unsafe"
 
 	"go.uber.org/zap"
 
@@ -57,6 +58,58 @@ func registerDefaults() {
 	Register(&Handler{
 		Path:    EventLogRouterPath,
 		Handler: eventlog.Handler(),
+	})
+
+	Register(&Handler{
+		Path: "/vars",
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			//defer func() {
+			//	if err := recover(); err != nil {
+			//		fmt.Fprintf(w, "panic: %v", err)
+			//	}
+			//}()
+			//point := r.URL.Query().Get("point")
+			//paramType := r.URL.Query().Get("param_type")
+			//result, err := strconv.ParseUint(point, 16, 0)
+			//if err != nil {
+			//	fmt.Fprint(w, "fail to the point address:", err)
+			//	return
+			//}
+			//addr := uintptr(result)
+			//ptr := unsafe.Pointer(addr)
+			//var value any
+			//switch paramType {
+			//case "int":
+			//	value = *(*int)(ptr)
+			//case "string":
+			//	value = *(*string)(ptr)
+			//default:
+			//	fmt.Fprint(w, "Unsupported param type:", paramType)
+			//	return
+			//}
+			//
+			////value := *(*int)(unsafe.Pointer(addr))
+			//
+			////ptr := unsafe.Pointer(addr)
+			////valuePtr := (*int)(ptr)
+			////value := reflect.ValueOf(valuePtr).Elem().Int()
+			//
+			//fmt.Fprint(w, "Variable value: ", value)
+
+			// Create a pointer of type uintptr using the address
+
+			point := r.URL.Query().Get("point")
+			result, err := strconv.ParseUint(point, 16, 0)
+			if err != nil {
+				fmt.Fprint(w, "fail to the point address:", err)
+				return
+			}
+			addr := uintptr(result)
+			ptr := unsafe.Pointer(addr)
+			bytePtr := (*byte)(ptr)
+			value := *bytePtr
+			fmt.Printf("Value at address 0x%X: %X\n", addr, value)
+		}),
 	})
 }
 
