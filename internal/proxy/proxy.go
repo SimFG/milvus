@@ -250,6 +250,7 @@ func (node *Proxy) Init() error {
 		return err
 	}
 	node.rpcMsgStream.AsProducer([]string{rpcRequestChannel})
+	log.Info("rpc msg stream", zap.String("channelName", rpcRequestChannel))
 
 	node.sched, err = newTaskScheduler(node.ctx, node.tsoAllocator, node.factory)
 	if err != nil {

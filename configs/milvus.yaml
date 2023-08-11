@@ -99,7 +99,7 @@ minio:
 mq:
   # Default value: "default"
   # Valid values: [default, pulsar, kafka, rocksmq, natsmq]
-  type: default
+  type: pulsar
 
 # Related configuration of pulsar, used to manage Milvus logs of recent mutation operations, output streaming log, and provide log publish-subscribe services.
 pulsar:
@@ -118,38 +118,38 @@ pulsar:
 #   saslMechanisms: PLAIN
 #   securityProtocol: SASL_SSL
 
-rocksmq:
-  # The path where the message is stored in rocksmq
-  # please adjust in embedded Milvus: /tmp/milvus/rdb_data
-  path: /var/lib/milvus/rdb_data
-  lrucacheratio: 0.06 # rocksdb cache memory ratio
-  rocksmqPageSize: 67108864 # 64 MB, 64 * 1024 * 1024 bytes, The size of each page of messages in rocksmq
-  retentionTimeInMinutes: 4320 # 3 days, 3 * 24 * 60 minutes, The retention time of the message in rocksmq.
-  retentionSizeInMB: 8192 # 8 GB, 8 * 1024 MB, The retention size of the message in rocksmq.
-  compactionInterval: 86400 # 1 day, trigger rocksdb compaction every day to remove deleted data
-  # compaction compression type, only support use 0,7.
-  # 0 means not compress, 7 will use zstd
-  # len of types means num of rocksdb level.
-  compressionTypes: [0, 0, 7, 7, 7]
+#rocksmq:
+#  # The path where the message is stored in rocksmq
+#  # please adjust in embedded Milvus: /tmp/milvus/rdb_data
+#  path: /var/lib/milvus/rdb_data
+#  lrucacheratio: 0.06 # rocksdb cache memory ratio
+#  rocksmqPageSize: 67108864 # 64 MB, 64 * 1024 * 1024 bytes, The size of each page of messages in rocksmq
+#  retentionTimeInMinutes: 4320 # 3 days, 3 * 24 * 60 minutes, The retention time of the message in rocksmq.
+#  retentionSizeInMB: 8192 # 8 GB, 8 * 1024 MB, The retention size of the message in rocksmq.
+#  compactionInterval: 86400 # 1 day, trigger rocksdb compaction every day to remove deleted data
+#  # compaction compression type, only support use 0,7.
+#  # 0 means not compress, 7 will use zstd
+#  # len of types means num of rocksdb level.
+#  compressionTypes: [0, 0, 7, 7, 7]
 
 # natsmq configuration.
-natsmq:
-  server: # server side configuration for natsmq.
-    port: 4222 # 4222 by default, Port for nats server listening.
-    storeDir: /var/lib/milvus/nats # /var/lib/milvus/nats by default, directory to use for JetStream storage of nats.
-    maxFileStore: 17179869184 # (B) 16GB by default, Maximum size of the 'file' storage.
-    maxPayload: 8388608 # (B) 8MB by default, Maximum number of bytes in a message payload.
-    maxPending: 67108864 # (B) 64MB by default, Maximum number of bytes buffered for a connection Applies to client connections.
-    initializeTimeout: 4000 # (ms) 4s by default, waiting for initialization of natsmq finished.
-    monitor:
-      debug: false # false by default, If true enable debug log messages.
-      logTime: true # true by default, If set to false, log without timestamps.
-      logFile: # no log file by default, Log file path relative to.. .
-      logSizeLimit: 0 # (B) 0, unlimited by default, Size in bytes after the log file rolls over to a new one.
-    retention:
-      maxAge: 4320 # (min) 3 days by default, Maximum age of any message in the P-channel.
-      maxBytes: # (B) None by default, How many bytes the single P-channel may contain. Removing oldest messages if the P-channel exceeds this size.
-      maxMsgs: # None by default, How many message the single P-channel may contain. Removing oldest messages if the P-channel exceeds this limit.
+#natsmq:
+#  server: # server side configuration for natsmq.
+#    port: 4222 # 4222 by default, Port for nats server listening.
+#    storeDir: /var/lib/milvus/nats # /var/lib/milvus/nats by default, directory to use for JetStream storage of nats.
+#    maxFileStore: 17179869184 # (B) 16GB by default, Maximum size of the 'file' storage.
+#    maxPayload: 8388608 # (B) 8MB by default, Maximum number of bytes in a message payload.
+#    maxPending: 67108864 # (B) 64MB by default, Maximum number of bytes buffered for a connection Applies to client connections.
+#    initializeTimeout: 4000 # (ms) 4s by default, waiting for initialization of natsmq finished.
+#    monitor:
+#      debug: false # false by default, If true enable debug log messages.
+#      logTime: true # true by default, If set to false, log without timestamps.
+#      logFile: # no log file by default, Log file path relative to.. .
+#      logSizeLimit: 0 # (B) 0, unlimited by default, Size in bytes after the log file rolls over to a new one.
+#    retention:
+#      maxAge: 4320 # (min) 3 days by default, Maximum age of any message in the P-channel.
+#      maxBytes: # (B) None by default, How many bytes the single P-channel may contain. Removing oldest messages if the P-channel exceeds this size.
+#      maxMsgs: # None by default, How many message the single P-channel may contain. Removing oldest messages if the P-channel exceeds this limit.
 
 # Related configuration of rootCoord, used to handle data definition language (DDL) and data control language (DCL) requests
 rootCoord:
@@ -509,7 +509,7 @@ common:
 #   4. DQL result rate protection;
 # If necessary, you can also manually force to deny RW requests.
 quotaAndLimits:
-  enabled: true # `true` to enable quota and limits, `false` to disable.
+  enabled: false # `true` to enable quota and limits, `false` to disable.
   limits:
     maxCollectionNum: 65536
     maxCollectionNumPerDB: 65536

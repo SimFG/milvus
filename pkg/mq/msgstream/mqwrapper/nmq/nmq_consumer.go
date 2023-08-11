@@ -122,7 +122,7 @@ func (nc *Consumer) Ack(message mqwrapper.Message) {
 func (nc *Consumer) Close() {
 	nc.closeOnce.Do(func() {
 		if err := nc.sub.Unsubscribe(); err != nil {
-			log.Warn("failed to unsubscribe subscription of nmq", zap.String("topic", nc.topic))
+			log.Warn("failed to unsubscribe subscription of nmq", zap.String("topic", nc.topic), zap.Error(err))
 		}
 		close(nc.closeChan)
 		nc.wg.Wait()

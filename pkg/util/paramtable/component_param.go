@@ -302,8 +302,9 @@ func (p *commonConfig) init(base *BaseTable) {
 	p.DataCoordSegmentInfo.Init(base.mgr)
 
 	p.RpcRequestChannel = ParamItem{
-		Key:          "msgChannel.chanNamePrefix.rpcRequestChannel",
+		Key:          "msgChannel.chanNamePrefix.rpcRequest",
 		Version:      "2.3.1",
+		FallbackKeys: []string{"common.chanNamePrefix.rpcRequest"},
 		DefaultValue: "rpc-request",
 		PanicIfEmpty: true,
 		Formatter:    chanNamePrefix,
