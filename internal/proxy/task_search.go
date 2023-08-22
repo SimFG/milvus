@@ -418,6 +418,7 @@ func (t *searchTask) Execute(ctx context.Context) error {
 	executeSearch := func() error {
 		shard2Leaders, err := globalMetaCache.GetShards(ctx, true, t.request.GetDbName(), t.collectionName)
 		if err != nil {
+			log.Warn("failed to get shard leader from meta cache", zap.Error(err))
 			return err
 		}
 		t.resultBuf = make(chan *internalpb.SearchResults, len(shard2Leaders))
