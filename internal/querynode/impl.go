@@ -988,6 +988,7 @@ func (node *QueryNode) searchWithDmlChannel(ctx context.Context, req *querypb.Se
 	results, errCluster = cluster.Search(searchCtx, req, withStreamingFunc)
 	if errCluster != nil {
 		log.Ctx(ctx).Warn("search shard cluster failed", zap.String("vChannel", dmlChannel), zap.Error(errCluster))
+		failRet.Status.ErrorCode = commonpb.ErrorCode_NotReadyServe
 		failRet.Status.Reason = errCluster.Error()
 		return failRet, nil
 	}

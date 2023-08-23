@@ -141,6 +141,7 @@ func (q *queryShardService) getQueryShard(channel Channel) (*queryShard, error) 
 	q.queryShardsMu.Lock()
 	defer q.queryShardsMu.Unlock()
 	if _, ok := q.queryShards[channel]; !ok {
+		log.Info("debug strack", zap.String("channel", channel), zap.Stack("channel_not_exist"))
 		return nil, errors.New(fmt.Sprintln("query shard(channel) ", channel, " does not exist"))
 	}
 	return q.queryShards[channel], nil
