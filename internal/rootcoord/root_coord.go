@@ -736,8 +736,12 @@ func (c *Core) Stop() error {
 	c.stopScheduler()
 	c.cancelIfNotNil()
 	c.wg.Wait()
-	c.revokeSession()
+	//c.revokeSession()
 	return nil
+}
+
+func (c *Core) RevokeSession() {
+	c.revokeSession()
 }
 
 // GetComponentStates get states of components

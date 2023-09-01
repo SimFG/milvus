@@ -342,8 +342,13 @@ func (s *Server) Stop() error {
 	log.Info("Rootcoord begin to stop grpc server")
 	s.cancel()
 	if s.grpcServer != nil {
-		log.Info("Graceful stop grpc server...")
-		s.grpcServer.GracefulStop()
+		log.Info("Stop grpc server...")
+		s.grpcServer.Stop()
+	}
+	if s.rootCoord != nil {
+		if core, ok := s.rootCoord.(*rootcoord.Core); ok {
+			core.RevokeSession()
+		}
 	}
 	s.wg.Wait()
 	return nil
