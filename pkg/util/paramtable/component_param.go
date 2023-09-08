@@ -218,6 +218,8 @@ type commonConfig struct {
 	LockSlowLogWarnThreshold ParamItem `refreshable:"true"`
 
 	IndexEngineVersion ParamItem `refreshable:"true"`
+
+	IsBackupInstance ParamItem `refreshable:"true"`
 }
 
 func (p *commonConfig) init(base *BaseTable) {
@@ -623,6 +625,14 @@ like the old password verification when updating the credential`,
 		Export:       true,
 	}
 	p.IndexEngineVersion.Init(base.mgr)
+
+	p.IsBackupInstance = ParamItem{
+		Key:          "common.isBackupInstance",
+		Version:      "2.3.2",
+		DefaultValue: "false",
+		Doc:          "whether the instance is a backup instance",
+	}
+	p.IsBackupInstance.Init(base.mgr)
 }
 
 type traceConfig struct {
@@ -1154,11 +1164,11 @@ type queryCoordConfig struct {
 	TaskMergeCap     ParamItem `refreshable:"false"`
 	TaskExecutionCap ParamItem `refreshable:"true"`
 
-	//---- Handoff ---
-	//Deprecated: Since 2.2.2
+	// ---- Handoff ---
+	// Deprecated: Since 2.2.2
 	AutoHandoff ParamItem `refreshable:"true"`
 
-	//---- Balance ---
+	// ---- Balance ---
 	AutoBalance                         ParamItem `refreshable:"true"`
 	Balancer                            ParamItem `refreshable:"true"`
 	GlobalRowCountFactor                ParamItem `refreshable:"true"`
@@ -1196,7 +1206,7 @@ type queryCoordConfig struct {
 }
 
 func (p *queryCoordConfig) init(base *BaseTable) {
-	//---- Task ---
+	// ---- Task ---
 	p.RetryNum = ParamItem{
 		Key:          "queryCoord.task.retrynum",
 		Version:      "2.2.0",

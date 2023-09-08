@@ -45,6 +45,7 @@ import (
 	"github.com/milvus-io/milvus/pkg/util/metricsinfo"
 	"github.com/milvus-io/milvus/pkg/util/paramtable"
 	"github.com/milvus-io/milvus/pkg/util/ratelimitutil"
+	"github.com/milvus-io/milvus/pkg/util/resource"
 	"github.com/milvus-io/milvus/pkg/util/tsoutil"
 	"github.com/milvus-io/milvus/pkg/util/typeutil"
 )
@@ -111,6 +112,10 @@ type Proxy struct {
 
 	// for load balance in replicas
 	lbPolicy LBPolicy
+
+	// resource manager
+	resourceManager        resource.Manager
+	replicateStreamManager *ReplicateStreamManager
 }
 
 // NewProxy returns a Proxy struct.
@@ -121,14 +126,18 @@ func NewProxy(ctx context.Context, factory dependency.Factory) (*Proxy, error) {
 	mgr := newShardClientMgr()
 	lbPolicy := NewLBPolicyImpl(mgr)
 	lbPolicy.Start(ctx)
+	resourceManager := resource.NewManager(10*time.Second, 20*time.Second, make(map[string]time.Duration))
+	replicateStreamManager := NewReplicateStreamManager(ctx, factory, resourceManager)
 	node := &Proxy{
-		ctx:              ctx1,
-		cancel:           cancel,
-		factory:          factory,
-		searchResultCh:   make(chan *internalpb.SearchResults, n),
-		shardMgr:         mgr,
-		multiRateLimiter: NewMultiRateLimiter(),
-		lbPolicy:         lbPolicy,
+		ctx:                    ctx1,
+		cancel:                 cancel,
+		factory:                factory,
+		searchResultCh:         make(chan *internalpb.SearchResults, n),
+		shardMgr:               mgr,
+		multiRateLimiter:       NewMultiRateLimiter(),
+		lbPolicy:               lbPolicy,
+		resourceManager:        resourceManager,
+		replicateStreamManager: replicateStreamManager,
 	}
 	node.UpdateStateCode(commonpb.StateCode_Abnormal)
 	logutil.Logger(ctx).Debug("create a new Proxy instance", zap.Any("state", node.stateCode.Load()))
@@ -277,6 +286,9 @@ func (node *Proxy) sendChannelsTimeTickLoop() {
 				log.Info("send channels time tick loop exit")
 				return
 			case <-ticker.C:
+				if Params.CommonCfg.IsBackupInstance.GetAsBool() {
+					continue
+				}
 				stats, ts, err := node.chTicker.getMinTsStatistics()
 				if err != nil {
 					log.Warn("sendChannelsTimeTickLoop.getMinTsStatistics", zap.Error(err))
@@ -430,6 +442,10 @@ func (node *Proxy) Stop() error {
 
 	if node.lbPolicy != nil {
 		node.lbPolicy.Close()
+	}
+
+	if node.resourceManager != nil {
+		node.resourceManager.Close()
 	}
 
 	// https://github.com/milvus-io/milvus/issues/12282

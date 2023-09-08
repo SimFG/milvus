@@ -424,11 +424,11 @@ type IndexNode interface {
 
 	// BuildIndex receives request from IndexCoordinator to build an index.
 	// Index building is asynchronous, so when an index building request comes, IndexNode records the task and returns.
-	//BuildIndex(ctx context.Context, req *datapb.BuildIndexRequest) (*commonpb.Status, error)
-	//GetTaskSlots(ctx context.Context, req *datapb.GetTaskSlotsRequest) (*datapb.GetTaskSlotsResponse, error)
+	// BuildIndex(ctx context.Context, req *datapb.BuildIndexRequest) (*commonpb.Status, error)
+	// GetTaskSlots(ctx context.Context, req *datapb.GetTaskSlotsRequest) (*datapb.GetTaskSlotsResponse, error)
 	//
-	//// GetMetrics gets the metrics about IndexNode.
-	//GetMetrics(ctx context.Context, req *milvuspb.GetMetricsRequest) (*milvuspb.GetMetricsResponse, error)
+	// // GetMetrics gets the metrics about IndexNode.
+	// GetMetrics(ctx context.Context, req *milvuspb.GetMetricsRequest) (*milvuspb.GetMetricsResponse, error)
 
 	// CreateJob receive index building job from indexcoord. Notes that index building is asynchronous, task is recorded
 	// in indexnode and then request is finished.
@@ -624,7 +624,7 @@ type RootCoord interface {
 	// error is always nil
 	//
 	// RootCoord forwards this request to IndexCoord to create index
-	//CreateIndex(ctx context.Context, req *milvuspb.CreateIndexRequest) (*commonpb.Status, error)
+	// CreateIndex(ctx context.Context, req *milvuspb.CreateIndexRequest) (*commonpb.Status, error)
 
 	// DescribeIndex notifies RootCoord to get specified index information for specified field
 	//
@@ -634,7 +634,7 @@ type RootCoord interface {
 	// The `Status` in response struct `DescribeIndexResponse` indicates if this operation is processed successfully or fail cause;
 	// index information is filled in `IndexDescriptions`
 	// error is always nil
-	//DescribeIndex(ctx context.Context, req *milvuspb.DescribeIndexRequest) (*milvuspb.DescribeIndexResponse, error)
+	// DescribeIndex(ctx context.Context, req *milvuspb.DescribeIndexRequest) (*milvuspb.DescribeIndexResponse, error)
 
 	// GetIndexState(ctx context.Context, req *milvuspb.GetIndexStateRequest) (*milvuspb.GetIndexStateResponse, error)
 
@@ -648,7 +648,7 @@ type RootCoord interface {
 	// error is always nil
 	//
 	// RootCoord forwards this request to IndexCoord to drop index
-	//DropIndex(ctx context.Context, req *milvuspb.DropIndexRequest) (*commonpb.Status, error)
+	// DropIndex(ctx context.Context, req *milvuspb.DropIndexRequest) (*commonpb.Status, error)
 
 	// CreateAlias notifies RootCoord to create an alias for the collection
 	//
@@ -718,7 +718,7 @@ type RootCoord interface {
 	// The `Status` in response struct `DescribeSegmentResponse` indicates if this operation is processed successfully or fail cause;
 	// segment index information is filled in `IndexID`, `BuildID` and `EnableIndex`.
 	// error is always nil
-	//DescribeSegment(ctx context.Context, req *milvuspb.DescribeSegmentRequest) (*milvuspb.DescribeSegmentResponse, error)
+	// DescribeSegment(ctx context.Context, req *milvuspb.DescribeSegmentRequest) (*milvuspb.DescribeSegmentResponse, error)
 
 	// ShowSegments notifies RootCoord to list all segment ids in the collection or partition
 	//
@@ -756,7 +756,7 @@ type RootCoord interface {
 	//
 	// This interface is only used by DataCoord, when RootCoord receives this request, RootCoord will notify IndexCoord
 	// to build index for this segment.
-	//SegmentFlushCompleted(ctx context.Context, in *datapb.SegmentFlushCompletedMsg) (*commonpb.Status, error)
+	// SegmentFlushCompleted(ctx context.Context, in *datapb.SegmentFlushCompletedMsg) (*commonpb.Status, error)
 
 	// ShowConfigurations gets specified configurations para of RootCoord
 	ShowConfigurations(ctx context.Context, req *internalpb.ShowConfigurationsRequest) (*internalpb.ShowConfigurationsResponse, error)
@@ -1438,6 +1438,8 @@ type ProxyComponent interface {
 	Connect(ctx context.Context, req *milvuspb.ConnectRequest) (*milvuspb.ConnectResponse, error)
 
 	AllocTimestamp(ctx context.Context, req *milvuspb.AllocTimestampRequest) (*milvuspb.AllocTimestampResponse, error)
+
+	ReplicateMessage(ctx context.Context, req *milvuspb.ReplicateMessageRequest) (*milvuspb.ReplicateMessageResponse, error)
 }
 
 // QueryNode is the interface `querynode` package implements

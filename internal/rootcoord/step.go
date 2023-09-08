@@ -186,6 +186,9 @@ type deleteCollectionDataStep struct {
 }
 
 func (s *deleteCollectionDataStep) Execute(ctx context.Context) ([]nestedStep, error) {
+	if Params.CommonCfg.IsBackupInstance.GetAsBool() {
+		return nil, nil
+	}
 	ddlTs, err := s.core.garbageCollector.GcCollectionData(ctx, s.coll)
 	if err != nil {
 		return nil, err
@@ -242,6 +245,9 @@ type deletePartitionDataStep struct {
 }
 
 func (s *deletePartitionDataStep) Execute(ctx context.Context) ([]nestedStep, error) {
+	if Params.CommonCfg.IsBackupInstance.GetAsBool() {
+		return nil, nil
+	}
 	_, err := s.core.garbageCollector.GcPartitionData(ctx, s.pchans, s.partition)
 	return nil, err
 }

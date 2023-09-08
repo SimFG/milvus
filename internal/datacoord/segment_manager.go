@@ -505,6 +505,9 @@ func (s *SegmentManager) GetFlushableSegments(ctx context.Context, channel strin
 	for _, id := range s.segments {
 		info := s.meta.GetHealthySegment(id)
 		if info == nil || info.InsertChannel != channel {
+			if info != nil {
+				log.Warn("get flushable segments channel check", zap.String("insert_channel", info.InsertChannel), zap.String("channel", channel), zap.Any("segment", id))
+			}
 			continue
 		}
 		if s.flushPolicy(info, t) {

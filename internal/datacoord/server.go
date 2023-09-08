@@ -1027,7 +1027,7 @@ func (s *Server) stopServerLoop() {
 	s.serverLoopWg.Wait()
 }
 
-//func (s *Server) validateAllocRequest(collID UniqueID, partID UniqueID, channelName string) error {
+// func (s *Server) validateAllocRequest(collID UniqueID, partID UniqueID, channelName string) error {
 //	if !s.meta.HasCollection(collID) {
 //		return fmt.Errorf("can not find collection %d", collID)
 //	}
@@ -1040,7 +1040,7 @@ func (s *Server) stopServerLoop() {
 //		}
 //	}
 //	return fmt.Errorf("can not find channel %s", channelName)
-//}
+// }
 
 // loadCollectionFromRootCoord communicates with RootCoord and asks for collection information.
 // collection information will be added to server meta info.

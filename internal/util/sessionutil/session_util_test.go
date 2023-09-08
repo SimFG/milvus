@@ -634,6 +634,7 @@ func TestSessionProcessActiveStandBy(t *testing.T) {
 	})
 	wg.Wait()
 	s1.LivenessCheck(ctx1, func() {
+		log.Debug("Session 1 livenessCheck callback")
 		flag = true
 		close(signal)
 		s1.cancelKeepAlive()
@@ -659,11 +660,24 @@ func TestSessionProcessActiveStandBy(t *testing.T) {
 	log.Debug("Stop session 1, session 2 will take over primary service")
 	assert.False(t, flag)
 
-	s1.Stop()
-	<-signal
+	s1.safeCloseLiveCh()
+	{
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_, _ = s1.etcdCli.Revoke(ctx, *s1.leaseID)
+	}
+	select {
+	case <-signal:
+		log.Debug("receive s1 signal")
+	case <-time.After(10 * time.Second):
+		log.Debug("wait to fail Liveness Check  timeout")
+		t.FailNow()
+	}
 	assert.True(t, flag)
+	log.Debug("session s1 stop")
 
 	wg.Wait()
+	log.Debug("session s2 wait done")
 	assert.False(t, s2.isStandby.Load().(bool))
 	s2.Stop()
 }

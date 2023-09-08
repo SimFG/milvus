@@ -18,6 +18,7 @@ package proxy
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strconv"
@@ -4949,6 +4950,94 @@ func (node *Proxy) Connect(ctx context.Context, request *milvuspb.ConnectRequest
 		ServerInfo: serverInfo,
 		Identifier: int64(ts),
 	}, nil
+}
+
+func (node *Proxy) ReplicateMessage(ctx context.Context, req *milvuspb.ReplicateMessageRequest) (*milvuspb.ReplicateMessageResponse, error) {
+	if code, isHealthy := node.checkHealthyAndReturnCode(); !isHealthy {
+		return &milvuspb.ReplicateMessageResponse{
+			Status: merr.Status(merr.WrapErrServiceNotReady(code.String())),
+		}, nil
+	}
+
+	if !paramtable.Get().CommonCfg.IsBackupInstance.GetAsBool() {
+		return &milvuspb.ReplicateMessageResponse{
+			Status: merr.Status(merr.ErrDenyReplicateMessage),
+		}, nil
+	}
+	var err error
+	ctxLog := log.Ctx(ctx)
+
+	if req.GetChannelName() == "" {
+		ctxLog.Warn("channel name is empty")
+		return &milvuspb.ReplicateMessageResponse{
+			Status: merr.Status(merr.WrapErrParameterInvalidMsg("invalid channel name for the replicate message request")),
+		}, nil
+	}
+
+	msgPack := &msgstream.MsgPack{
+		BeginTs:        req.BeginTs,
+		EndTs:          req.EndTs,
+		Msgs:           make([]msgstream.TsMsg, 0),
+		StartPositions: req.StartPositions,
+		EndPositions:   req.EndPositions,
+	}
+	// getTsMsgFromConsumerMsg
+	for i, msgBytes := range req.Msgs {
+		header := commonpb.MsgHeader{}
+		err = proto.Unmarshal(msgBytes, &header)
+		if err != nil {
+			ctxLog.Warn("failed to unmarshal msg header", zap.Int("index", i), zap.Error(err))
+			return &milvuspb.ReplicateMessageResponse{Status: merr.Status(err)}, nil
+		}
+		if header.GetBase() == nil {
+			ctxLog.Warn("msg header base is nil", zap.Int("index", i))
+			return &milvuspb.ReplicateMessageResponse{Status: merr.Status(merr.ErrUncompletedMsgHeader)}, nil
+		}
+		tsMsg, err := node.replicateStreamManager.GetMsgDispatcher().Unmarshal(msgBytes, header.GetBase().GetMsgType())
+		if err != nil {
+			ctxLog.Warn("failed to unmarshal msg", zap.Int("index", i), zap.Error(err))
+			return &milvuspb.ReplicateMessageResponse{Status: merr.Status(merr.ErrUnmarshalMsg)}, nil
+		}
+		switch realMsg := tsMsg.(type) {
+		case *msgstream.InsertMsg:
+			assignedSegmentInfos, err := node.segAssigner.GetSegmentID(realMsg.GetCollectionID(), realMsg.GetPartitionID(),
+				realMsg.GetShardName(), uint32(realMsg.NumRows), req.EndTs)
+			if err != nil {
+				ctxLog.Warn("failed to get segment id", zap.Error(err))
+				return &milvuspb.ReplicateMessageResponse{Status: merr.Status(err)}, nil
+			}
+			if len(assignedSegmentInfos) == 0 {
+				ctxLog.Warn("no segment id assigned")
+				return &milvuspb.ReplicateMessageResponse{Status: merr.Status(merr.ErrNoAssignSegmentID)}, nil
+			}
+			for assignSegmentID := range assignedSegmentInfos {
+				realMsg.SegmentID = assignSegmentID
+				break
+			}
+		}
+		msgPack.Msgs = append(msgPack.Msgs, tsMsg)
+	}
+
+	msgStream, err := node.replicateStreamManager.GetReplicateMsgStream(ctx, req.ChannelName)
+	if err != nil {
+		ctxLog.Warn("failed to get msg stream from the replicate stream manager", zap.Error(err))
+		return &milvuspb.ReplicateMessageResponse{
+			Status: merr.Status(err),
+		}, nil
+	}
+	messageIDsMap, err := msgStream.Broadcast(msgPack)
+	if err != nil {
+		ctxLog.Warn("failed to produce msg", zap.Error(err))
+		return &milvuspb.ReplicateMessageResponse{Status: merr.Status(err)}, nil
+	}
+	var position string
+	if len(messageIDsMap[req.GetChannelName()]) == 0 {
+		ctxLog.Warn("no message id returned")
+	} else {
+		messageIDs := messageIDsMap[req.GetChannelName()]
+		position = base64.StdEncoding.EncodeToString(messageIDs[len(messageIDs)-1].Serialize())
+	}
+	return &milvuspb.ReplicateMessageResponse{Status: merr.Status(nil), Position: position}, nil
 }
 
 func (node *Proxy) ListClientInfos(ctx context.Context, req *proxypb.ListClientInfosRequest) (*proxypb.ListClientInfosResponse, error) {

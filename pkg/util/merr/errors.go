@@ -115,6 +115,14 @@ var (
 	ErrInvalidSearchResult       = newMilvusError("fail to parse search result", 1805, false)
 	ErrCheckPrimaryKey           = newMilvusError("please check the primary key and its' type can only in [int, string]", 1806, false)
 
+	// mq related
+	ErrDenyProduceInBackup  = newMilvusError("deny to write the message to mq in backup instance", 1900, false)
+	ErrDenyReplicateMessage = newMilvusError("deny to use the replicate message in the normal instance", 1901, false)
+	ErrUncompletedMsgHeader = newMilvusError("the message header is uncompleted", 1902, false)
+	ErrUnmarshalMsg         = newMilvusError("fail to unmarshal the message", 1903, false)
+	ErrNoAssignSegmentID    = newMilvusError("no assign segment id", 1904, false)
+	ErrInvalidStreamObj     = newMilvusError("invalid stream object", 1905, false)
+
 	// Segcore related
 	ErrSegcore = newMilvusError("segcore error", 2000, false)
 

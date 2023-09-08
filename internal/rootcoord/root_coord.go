@@ -182,6 +182,9 @@ func (c *Core) sendTimeTick(t Timestamp, reason string) error {
 }
 
 func (c *Core) sendMinDdlTsAsTt() {
+	if paramtable.Get().CommonCfg.IsBackupInstance.GetAsBool() {
+		return
+	}
 	code := c.stateCode.Load().(commonpb.StateCode)
 	if code != commonpb.StateCode_Healthy {
 		log.Warn("rootCoord is not healthy, skip send timetick")
