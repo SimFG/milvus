@@ -664,6 +664,14 @@ func (ms *MqTtMsgStream) bufMsgPackToChannel() {
 				currTs, ok := ms.allChanReachSameTtMsg(chanTtMsgSync)
 				if !ok || currTs <= ms.lastTimeStamp {
 					ms.consumerLock.Unlock()
+					log.Debug("chan tt msg", zap.Uint64("currTs", currTs), zap.Uint64("lastTimeStamp", ms.lastTimeStamp))
+					for _, msgs := range ms.chanMsgBuf {
+						var msgType []commonpb.MsgType
+						for _, v := range msgs {
+							msgType = append(msgType, v.Type())
+						}
+						log.Debug("chan tt msg type", zap.Any("msgType", msgType))
+					}
 					continue
 				}
 				endTs = currTs
@@ -782,6 +790,7 @@ func (ms *MqTtMsgStream) consumeToTtMsg(consumer mqwrapper.Consumer) {
 			ms.chanMsgBufMutex.Lock()
 			ms.chanMsgBuf[consumer] = append(ms.chanMsgBuf[consumer], tsMsg)
 			ms.chanMsgBufMutex.Unlock()
+			log.Debug("MqTtMsgStream get msg", zap.Any("msg", tsMsg))
 
 			if tsMsg.Type() == commonpb.MsgType_TimeTick {
 				ms.chanTtMsgTimeMutex.Lock()
@@ -903,6 +912,8 @@ func (ms *MqTtMsgStream) Seek(ctx context.Context, msgPositions []*msgpb.MsgPosi
 						MsgID:       msg.ID().Serialize(),
 					})
 					ms.chanMsgBuf[consumer] = append(ms.chanMsgBuf[consumer], tsMsg)
+				} else {
+					log.Debug("skip msg", zap.Any("msg", tsMsg))
 				}
 			}
 		}
