@@ -122,6 +122,10 @@ func (ttn *ttNode) Operate(in []Msg) []Msg {
 	if needUpdate || curTs.Sub(ttn.lastUpdateTime.Load()) >= updateChanCPInterval {
 		nonBlockingNotify()
 		return []Msg{}
+	} else {
+		log.Info("cdc debug", zap.Bool("needUpdate", needUpdate),
+			zap.Time("curTs", curTs), zap.Time("lastUpdateTime", ttn.lastUpdateTime.Load()),
+			zap.Duration("updateInterval", updateChanCPInterval))
 	}
 
 	return []Msg{}
