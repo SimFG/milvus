@@ -466,7 +466,7 @@ func (ms *mqMsgStream) Chan() <-chan *MsgPack {
 
 // Seek reset the subscription associated with this consumer to a specific position, the seek position is exclusive
 // User has to ensure mq_msgstream is not closed before seek, and the seek position is already written.
-func (ms *mqMsgStream) Seek(ctx context.Context, msgPositions []*msgpb.MsgPosition) error {
+func (ms *mqMsgStream) Seek(ctx context.Context, msgPositions []*MsgPosition, includeCurrentMsg bool) error {
 	for _, mp := range msgPositions {
 		consumer, ok := ms.consumers[mp.ChannelName]
 		if !ok {
@@ -477,8 +477,8 @@ func (ms *mqMsgStream) Seek(ctx context.Context, msgPositions []*msgpb.MsgPositi
 			return err
 		}
 
-		log.Info("MsgStream seek begin", zap.String("channel", mp.ChannelName), zap.Any("MessageID", mp.MsgID))
-		err = consumer.Seek(messageID, false)
+		log.Info("MsgStream seek begin", zap.String("channel", mp.ChannelName), zap.Any("MessageID", mp.MsgID), zap.Bool("includeCurrentMsg", includeCurrentMsg))
+		err = consumer.Seek(messageID, includeCurrentMsg)
 		if err != nil {
 			log.Warn("Failed to seek", zap.String("channel", mp.ChannelName), zap.Error(err))
 			return err
@@ -824,7 +824,7 @@ func (ms *MqTtMsgStream) allChanReachSameTtMsg(chanTtMsgSync map[mqwrapper.Consu
 }
 
 // Seek to the specified position
-func (ms *MqTtMsgStream) Seek(ctx context.Context, msgPositions []*msgpb.MsgPosition) error {
+func (ms *MqTtMsgStream) Seek(ctx context.Context, msgPositions []*MsgPosition, includeCurrentMsg bool) error {
 	var consumer mqwrapper.Consumer
 	var mp *MsgPosition
 	var err error

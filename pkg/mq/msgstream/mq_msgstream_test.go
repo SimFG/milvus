@@ -501,7 +501,7 @@ func TestStream_PulsarMsgStream_SeekToLast(t *testing.T) {
 	defer outputStream2.Close()
 	assert.NoError(t, err)
 
-	err = outputStream2.Seek(ctx, []*msgpb.MsgPosition{seekPosition})
+	err = outputStream2.Seek(ctx, []*msgpb.MsgPosition{seekPosition}, false)
 	assert.NoError(t, err)
 
 	cnt := 0
@@ -930,7 +930,7 @@ func TestStream_MqMsgStream_Seek(t *testing.T) {
 	pulsarClient, _ := pulsarwrapper.NewClient(DefaultPulsarTenant, DefaultPulsarNamespace, pulsar.ClientOptions{URL: pulsarAddress})
 	outputStream2, _ := NewMqMsgStream(ctx, 100, 100, pulsarClient, factory.NewUnmarshalDispatcher())
 	outputStream2.AsConsumer(ctx, consumerChannels, consumerSubName, mqwrapper.SubscriptionPositionEarliest)
-	outputStream2.Seek(ctx, []*msgpb.MsgPosition{seekPosition})
+	outputStream2.Seek(ctx, []*msgpb.MsgPosition{seekPosition}, false)
 
 	for i := 6; i < 10; i++ {
 		result := consumer(ctx, outputStream2)
@@ -985,7 +985,7 @@ func TestStream_MqMsgStream_SeekInvalidMessage(t *testing.T) {
 		},
 	}
 
-	err = outputStream2.Seek(ctx, p)
+	err = outputStream2.Seek(ctx, p, false)
 	assert.NoError(t, err)
 
 	for i := 10; i < 20; i++ {
@@ -1382,7 +1382,7 @@ func getPulsarTtOutputStreamAndSeek(ctx context.Context, pulsarAddress string, p
 		consumerName = append(consumerName, c.ChannelName)
 	}
 	outputStream.AsConsumer(context.Background(), consumerName, funcutil.RandomString(8), mqwrapper.SubscriptionPositionUnknown)
-	outputStream.Seek(context.Background(), positions)
+	outputStream.Seek(context.Background(), positions, false)
 	return outputStream
 }
 
