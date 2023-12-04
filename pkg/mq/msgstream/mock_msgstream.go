@@ -446,7 +446,7 @@ func (_c *MockMsgStream_Produce_Call) RunAndReturn(run func(*MsgPack) error) *Mo
 }
 
 // Seek provides a mock function with given fields: ctx, offset
-func (_m *MockMsgStream) Seek(ctx context.Context, offset []*msgpb.MsgPosition) error {
+func (_m *MockMsgStream) Seek(ctx context.Context, msgPositions []*MsgPosition, includeCurrentMsg bool) error {
 	ret := _m.Called(ctx, offset)
 
 	var r0 error
