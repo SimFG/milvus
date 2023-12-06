@@ -31,6 +31,7 @@ import (
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+
 	"github.com/milvus-io/milvus/internal/common"
 	"github.com/milvus-io/milvus/internal/log"
 	"github.com/milvus-io/milvus/internal/storage"
@@ -666,4 +667,22 @@ func UpdateKVInfo(infos *[]*commonpb.KeyValuePair, k string, v string) error {
 	}
 
 	return nil
+}
+
+func newChunkManagerFactoryWithImportOptions(opt *ImportOptions) *storage.ChunkManagerFactory {
+	if opt.StorageType == "local" {
+		return storage.NewChunkManagerFactory(opt.StorageType, storage.RootPath(opt.RootPath))
+	}
+	return storage.NewChunkManagerFactory(opt.StorageType,
+		storage.RootPath(opt.RootPath),
+		storage.Address(opt.Address),
+		storage.AccessKeyID(opt.AccessKeyID),
+		storage.SecretAccessKeyID(opt.SecretAccessKeyID),
+		storage.UseSSL(opt.UseSSL),
+		storage.BucketName(opt.BucketName),
+		storage.UseIAM(opt.UseIAM),
+		storage.CloudProvider(opt.CloudProvider),
+		storage.IAMEndpoint(opt.IamEndpoint),
+		storage.UseVirtualHost(opt.UseVirtualHost),
+		storage.Region(opt.Region))
 }
