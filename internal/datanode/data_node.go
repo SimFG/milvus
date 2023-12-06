@@ -1117,16 +1117,15 @@ func (node *DataNode) Import(ctx context.Context, req *datapb.ImportTaskRequest)
 	importWrapper.SetCallbackFunctions(assignSegmentFunc(node, req),
 		createBinLogsFunc(node, req, colInfo.GetSchema(), ts),
 		saveSegmentFunc(node, req, importResult, ts))
+
 	// todo: pass tsStart and tsStart after import_wrapper support
-	tsStart, tsEnd, err := importutil.ParseTSFromOptions(req.GetImportTask().GetInfos())
-	isBackup := importutil.IsBackup(req.GetImportTask().GetInfos())
+	opts, err := importutil.ParseImportOptions(req.GetImportTask().GetInfos())
 	if err != nil {
-		return returnFailFunc("failed to parse timestamp from import options", err)
+		return returnFailFunc("failed to parse import options", err)
 	}
-	logFields = append(logFields, zap.Uint64("start_ts", tsStart), zap.Uint64("end_ts", tsEnd))
-	log.Info("import time range", logFields...)
-	err = importWrapper.Import(req.GetImportTask().GetFiles(),
-		importutil.ImportOptions{OnlyValidate: false, TsStartPoint: tsStart, TsEndPoint: tsEnd, IsBackup: isBackup})
+
+	log.Info("launch import task", logFields...)
+	err = importWrapper.Import(req.GetImportTask().GetFiles(), opts)
 	if err != nil {
 		return returnFailFunc("failed to import files", err)
 	}
