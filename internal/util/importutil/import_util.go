@@ -669,7 +669,12 @@ func UpdateKVInfo(infos *[]*commonpb.KeyValuePair, k string, v string) error {
 	return nil
 }
 
+// newChunkManagerFactoryWithImportOptions return nil if storage type and root path are empty
 func newChunkManagerFactoryWithImportOptions(opt *ImportOptions) *storage.ChunkManagerFactory {
+	if opt.StorageType == "" && opt.RootPath == "" {
+		return nil
+	}
+
 	if opt.StorageType == "local" {
 		return storage.NewChunkManagerFactory(opt.StorageType, storage.RootPath(opt.RootPath))
 	}

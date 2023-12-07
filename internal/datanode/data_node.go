@@ -1083,16 +1083,18 @@ func (node *DataNode) Import(ctx context.Context, req *datapb.ImportTaskRequest)
 	// parse files and generate segments
 	segmentSize := int64(Params.DataCoordCfg.SegmentMaxSize) * 1024 * 1024
 	importWrapper := importutil.NewImportWrapper(newCtx, collectionInfo, segmentSize, Params.DataNodeCfg.BinLogMaxSize,
-		node.rowIDAllocator, nil, importResult, reportFunc)
+		node.rowIDAllocator, node.chunkManager, importResult, reportFunc)
 	importWrapper.SetCallbackFunctions(assignSegmentFunc(node, req),
 		createBinLogsFunc(node, req, colInfo.GetSchema(), ts),
 		saveSegmentFunc(node, req, importResult, ts))
 
 	// todo: pass tsStart and tsStart after import_wrapper support
 	opts, err := importutil.ParseImportOptions(req.GetImportTask().GetInfos())
-	logFields = append(logFields, zap.String("import_opts", opts.String()))
-	log.Info("launch import task", logFields...)
+	if err != nil {
+		return returnFailFunc("failed to parse import options", err)
+	}
 
+	log.Info("launch import task", logFields...)
 	err = importWrapper.Import(req.GetImportTask().GetFiles(), opts)
 	if err != nil {
 		return returnFailFunc("failed to import files", err)

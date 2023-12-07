@@ -22,14 +22,15 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/milvus-io/milvus/internal/querycoordv2/params"
 	"go.uber.org/zap"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+
 	"github.com/milvus-io/milvus/internal/allocator"
 	"github.com/milvus-io/milvus/internal/log"
 	"github.com/milvus-io/milvus/internal/proto/datapb"
 	"github.com/milvus-io/milvus/internal/proto/rootcoordpb"
+	"github.com/milvus-io/milvus/internal/querycoordv2/params"
 	"github.com/milvus-io/milvus/internal/storage"
 	"github.com/milvus-io/milvus/internal/util/retry"
 	"github.com/milvus-io/milvus/internal/util/timerecord"
@@ -68,9 +69,13 @@ const (
 var ReportImportAttempts uint = 10
 
 type ImportFlushFunc func(fields BlockData, shardID int, partID int64) error
+
 type AssignSegmentFunc func(shardID int, partID int64) (int64, string, error)
+
 type CreateBinlogsFunc func(fields BlockData, segmentID int64, partID int64) ([]*datapb.FieldBinlog, []*datapb.FieldBinlog, error)
+
 type SaveSegmentFunc func(fieldsInsert []*datapb.FieldBinlog, fieldsStats []*datapb.FieldBinlog, segmentID int64, targetChName string, rowCount int64, partID int64) error
+
 type ReportFunc func(res *rootcoordpb.ImportResult) error
 
 type WorkingSegment struct {
@@ -85,13 +90,13 @@ type WorkingSegment struct {
 }
 
 type ImportWrapper struct {
-	ctx            context.Context        // for canceling parse process
-	cancel         context.CancelFunc     // for canceling parse process
-	collectionInfo *CollectionInfo        // collection details including schema
-	segmentSize    int64                  // maximum size of a segment(unit:byte) defined by dataCoord.segment.maxSize (milvus.yml)
-	binlogSize     int64                  // average binlog size(unit:byte), the max biglog file size is no more than 2*binlogSize
-	rowIDAllocator *allocator.IDAllocator // autoid allocator
-	chunkManager   storage.ChunkManager   // just for testing
+	ctx                context.Context        // for canceling parse process
+	cancel             context.CancelFunc     // for canceling parse process
+	collectionInfo     *CollectionInfo        // collection details including schema
+	segmentSize        int64                  // maximum size of a segment(unit:byte) defined by dataCoord.segment.maxSize (milvus.yml)
+	binlogSize         int64                  // average binlog size(unit:byte), the max biglog file size is no more than 2*binlogSize
+	rowIDAllocator     *allocator.IDAllocator // autoid allocator
+	targetChunkManager storage.ChunkManager
 
 	assignSegmentFunc AssignSegmentFunc // function to prepare a new segment
 	createBinlogsFunc CreateBinlogsFunc // function to create binlog for a segment
@@ -132,7 +137,7 @@ func NewImportWrapper(ctx context.Context, collectionInfo *CollectionInfo, segme
 		segmentSize:          segmentSize,
 		binlogSize:           binlogSize,
 		rowIDAllocator:       idAlloc,
-		chunkManager:         cm,
+		targetChunkManager:   cm,
 		importResult:         importResult,
 		reportFunc:           reportFunc,
 		reportImportAttempts: ReportImportAttempts,
@@ -244,27 +249,31 @@ func (p *ImportWrapper) fileValidation(filePaths []string, chunkManager storage.
 // filePath and rowBased are from ImportTask
 // if onlyValidate is true, this process only do validation, no data generated, flushFunc will not be called
 func (p *ImportWrapper) Import(filePaths []string, options *ImportOptions) error {
-	log.Info("import wrapper: begin import", zap.Any("filePaths", filePaths), zap.Any("options", options))
+	log.Info("import wrapper: begin import", zap.Any("filePaths", filePaths), zap.Any("options", options.String()))
 
-	var chunkManager storage.ChunkManager
+	var sourceChunkManager storage.ChunkManager
 	var err error
-	if p.chunkManager == nil {
-		chunkManagerFactory := newChunkManagerFactoryWithImportOptions(options)
-		chunkManager, err = chunkManagerFactory.NewPersistentStorageChunkManager(p.ctx)
-		if err != nil {
-			return err
-		}
+
+	chunkManagerFactory := newChunkManagerFactoryWithImportOptions(options)
+	// Try to use target chunk manager as a source if the external source doesn't config
+	if chunkManagerFactory == nil {
+		sourceChunkManager = p.targetChunkManager
+	} else {
+		sourceChunkManager, err = chunkManagerFactory.NewPersistentStorageChunkManager(p.ctx)
 	}
-	chunkManager = p.chunkManager
+
+	if err != nil {
+		return err
+	}
 
 	// data restore function to import milvus native binlog files(for backup/restore tools)
 	// the backup/restore tool provide two paths for a partition, the first path is binlog path, the second is deltalog path
 	if options.IsBackup && p.isBinlogImport(filePaths) {
-		return p.doBinlogImport(filePaths, options.TsStartPoint, options.TsEndPoint, chunkManager)
+		return p.doBinlogImport(filePaths, options.TsStartPoint, options.TsEndPoint, sourceChunkManager)
 	}
 
 	// normal logic for import general data files
-	rowBased, err := p.fileValidation(filePaths, chunkManager)
+	rowBased, err := p.fileValidation(filePaths, sourceChunkManager)
 	if err != nil {
 		return err
 	}
@@ -280,7 +289,7 @@ func (p *ImportWrapper) Import(filePaths []string, options *ImportOptions) error
 			log.Info("import wrapper:  row-based file ", zap.Any("filePath", filePath), zap.Any("fileType", fileType))
 
 			if fileType == JSONFileExt {
-				err = p.parseRowBasedJSON(filePath, options.OnlyValidate, chunkManager)
+				err = p.parseRowBasedJSON(filePath, options.OnlyValidate, sourceChunkManager)
 				if err != nil {
 					log.Warn("import wrapper: failed to parse row-based json file", zap.Error(err), zap.String("filePath", filePath))
 					return err
@@ -299,7 +308,7 @@ func (p *ImportWrapper) Import(filePaths []string, options *ImportOptions) error
 			return p.flushFunc(fields, shardID, partitionID)
 		}
 		parser, err := NewNumpyParser(p.ctx, p.collectionInfo, p.rowIDAllocator, p.binlogSize,
-			p.chunkManager, flushFunc, p.updateProgressPercent)
+			sourceChunkManager, flushFunc, p.updateProgressPercent)
 		if err != nil {
 			return err
 		}

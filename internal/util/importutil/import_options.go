@@ -72,9 +72,18 @@ type ImportOptions struct {
 
 func DefaultImportOptions() *ImportOptions {
 	options := &ImportOptions{
-		OnlyValidate: false,
-		TsStartPoint: 0,
-		TsEndPoint:   math.MaxUint64,
+		StorageType:       "",
+		Address:           "",
+		BucketName:        "",
+		AccessKeyID:       "",
+		SecretAccessKeyID: "",
+		UseSSL:            false,
+		RootPath:          "",
+		UseIAM:            false,
+		CloudProvider:     "",
+		OnlyValidate:      false,
+		TsStartPoint:      0,
+		TsEndPoint:        math.MaxUint64,
 	}
 	return options
 }
