@@ -106,7 +106,8 @@ func (o *ImportOptions) String() string {
 		"UseVirtualHost: %v, "+
 		"Region: %s, "+
 		"RequestTimeoutMs: %d",
-		o.OnlyValidate, o.TsStartPoint, o.TsEndPoint, o.IsBackup, o.StorageType, o.Address, o.BucketName, o.AccessKeyID, o.SecretAccessKeyID, o.UseSSL, o.RootPath, o.UseIAM, o.CloudProvider, o.IamEndpoint, o.UseVirtualHost, o.Region, o.RequestTimeoutMs)
+		o.OnlyValidate, o.TsStartPoint, o.TsEndPoint, o.IsBackup, o.StorageType, o.Address, o.BucketName, o.AccessKeyID,
+		"******", o.UseSSL, o.RootPath, o.UseIAM, o.CloudProvider, o.IamEndpoint, o.UseVirtualHost, o.Region, o.RequestTimeoutMs)
 }
 
 // ValidateOptions the options is illegal, return nil if illegal, return error if not.
