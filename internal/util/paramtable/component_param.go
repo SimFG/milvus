@@ -1474,7 +1474,7 @@ type dataCoordConfig struct {
 	UpdatedTime time.Time
 
 	// compaction
-	EnableCompaction     bool
+	EnableCompaction     atomic.Value
 	EnableAutoCompaction atomic.Value
 	IndexBasedCompaction atomic.Value
 
@@ -1607,7 +1607,7 @@ func (p *dataCoordConfig) initChannelWatchPrefix() {
 }
 
 func (p *dataCoordConfig) initEnableCompaction() {
-	p.EnableCompaction = p.Base.ParseBool("dataCoord.enableCompaction", false)
+	p.EnableCompaction.Store(p.Base.ParseBool("dataCoord.enableCompaction", false))
 }
 
 func (p *dataCoordConfig) initCompactionRPCTimeout() {
@@ -1709,6 +1709,18 @@ func (p *dataCoordConfig) SetEnableAutoCompaction(enable bool) {
 
 func (p *dataCoordConfig) GetEnableAutoCompaction() bool {
 	enable := p.EnableAutoCompaction.Load()
+	if enable != nil {
+		return enable.(bool)
+	}
+	return false
+}
+
+func (p *dataCoordConfig) SetEnableCompaction(enable bool) {
+	p.EnableCompaction.Store(enable)
+}
+
+func (p *dataCoordConfig) GetEnableCompaction() bool {
+	enable := p.EnableCompaction.Load()
 	if enable != nil {
 		return enable.(bool)
 	}
