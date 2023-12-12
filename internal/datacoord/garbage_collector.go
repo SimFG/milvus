@@ -18,6 +18,7 @@ package datacoord
 
 import (
 	"context"
+	"errors"
 	"path"
 	"sort"
 	"strings"
@@ -104,6 +105,37 @@ func (gc *garbageCollector) start() {
 			gc.wg.Add(1)
 			go gc.work()
 		})
+	}
+}
+
+func (gc *garbageCollector) Pause(ctx context.Context, pauseDuration time.Duration) error {
+	if !gc.option.enabled {
+		log.Info("garbage collection not enabled")
+		return nil
+	}
+	select {
+	case gc.cmdCh <- gcCmd{
+		cmdType:  pause,
+		duration: pauseDuration,
+	}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (gc *garbageCollector) Resume(ctx context.Context) error {
+	if !gc.option.enabled {
+		log.Warn("garbage collection not enabled, cannot resume")
+		return errors.New("garbage collection not enabled")
+	}
+	select {
+	case gc.cmdCh <- gcCmd{
+		cmdType: resume,
+	}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
