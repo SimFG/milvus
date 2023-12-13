@@ -612,6 +612,7 @@ func Test_BinlogAdapterShardListVarchar(t *testing.T) {
 
 func Test_BinlogAdapterReadInt64PK(t *testing.T) {
 	ctx := context.Background()
+	paramtable.Init()
 
 	chunkManager := &MockChunkManager{}
 
@@ -714,6 +715,7 @@ func Test_BinlogAdapterReadInt64PK(t *testing.T) {
 
 func Test_BinlogAdapterReadVarcharPK(t *testing.T) {
 	ctx := context.Background()
+	paramtable.Init()
 
 	chunkManager := &MockChunkManager{}
 
