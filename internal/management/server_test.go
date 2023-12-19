@@ -130,7 +130,7 @@ func (suite *HTTPServerTestSuite) TestExprHandler() {
 	expr.Init("by-dev")
 	expr.Register("foo", "hello")
 	suite.Run("fail", func() {
-		url := suite.server.URL + ExprPath + "?code=foo"
+		url := "http://localhost:" + DefaultListenPort + ExprPath + "?code=foo"
 		client := http.Client{}
 		req, _ := http.NewRequest(http.MethodGet, url, nil)
 		resp, err := client.Do(req)
@@ -140,7 +140,7 @@ func (suite *HTTPServerTestSuite) TestExprHandler() {
 		suite.True(strings.Contains(string(body), "failed to execute"))
 	})
 	suite.Run("success", func() {
-		url := suite.server.URL + ExprPath + "?auth=by-dev&code=foo"
+		url := "http://localhost:" + DefaultListenPort + ExprPath + "?auth=by-dev&code=foo"
 		client := http.Client{}
 		req, _ := http.NewRequest(http.MethodGet, url, nil)
 		resp, err := client.Do(req)
