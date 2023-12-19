@@ -20,14 +20,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus/internal/log"
 	"github.com/milvus-io/milvus/internal/management/healthz"
+	"github.com/milvus-io/milvus/pkg/expr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
@@ -122,6 +125,31 @@ func (suite *HTTPServerTestSuite) TestHealthzHandler() {
 	defer resp.Body.Close()
 	body, _ = ioutil.ReadAll(resp.Body)
 	suite.Equal("{\"state\":\"component m2 state is Abnormal\",\"detail\":[{\"name\":\"m1\",\"code\":1},{\"name\":\"m2\",\"code\":2}]}", string(body))
+}
+
+func (suite *HTTPServerTestSuite) TestExprHandler() {
+	expr.Init("by-dev")
+	expr.Register("foo", "hello")
+	suite.Run("fail", func() {
+		url := "http://localhost:" + DefaultListenPort + ExprPath + "?code=foo"
+		client := http.Client{}
+		req, _ := http.NewRequest(http.MethodGet, url, nil)
+		resp, err := client.Do(req)
+		suite.Nil(err)
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		suite.True(strings.Contains(string(body), "failed to execute"))
+	})
+	suite.Run("success", func() {
+		url := "http://localhost:" + DefaultListenPort + ExprPath + "?auth=by-dev&code=foo"
+		client := http.Client{}
+		req, _ := http.NewRequest(http.MethodGet, url, nil)
+		resp, err := client.Do(req)
+		suite.Nil(err)
+		defer resp.Body.Close()
+		body, _ := io.ReadAll(resp.Body)
+		suite.True(strings.Contains(string(body), "hello"))
+	})
 }
 
 func TestHTTPServerSuite(t *testing.T) {
