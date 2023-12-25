@@ -613,6 +613,7 @@ type proxyConfig struct {
 	ShardLeaderCacheInterval atomic.Value
 
 	SkipAutoIDCheckWhenIDExisted bool
+	DelayPartitionKeyCheck       bool
 }
 
 func (p *proxyConfig) init(base *BaseTable) {
@@ -766,6 +767,10 @@ func (p *proxyConfig) initShardLeaderCacheInterval() {
 
 func (p *proxyConfig) initSkipAutoIDCheckWhenIDExisted() {
 	p.SkipAutoIDCheckWhenIDExisted = p.Base.ParseBool("proxy.skipAutoIDCheckWhenIDExisted", false)
+}
+
+func (p *proxyConfig) initDelayPartitionKeyCheck() {
+	p.DelayPartitionKeyCheck = p.Base.ParseBool("proxy.delayPartitionKeyCheck", false)
 }
 
 // /////////////////////////////////////////////////////////////////////////////

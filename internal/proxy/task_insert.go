@@ -25,6 +25,7 @@ import (
 	"github.com/milvus-io/milvus/internal/util/timerecord"
 	"github.com/milvus-io/milvus/internal/util/trace"
 	"github.com/milvus-io/milvus/internal/util/typeutil"
+	"github.com/samber/lo"
 )
 
 type insertTask struct {
@@ -43,6 +44,8 @@ type insertTask struct {
 	schema             *schemapb.CollectionSchema
 	isPartitionKeyMode bool
 	partitionKeys      *schemapb.FieldData
+
+	delayPartitionKeyCheck bool
 }
 
 // TraceCtx returns insertTask context
@@ -180,6 +183,10 @@ func (it *insertTask) checkPartitionKeys(collSchema *schemapb.CollectionSchema) 
 	if err == nil {
 		it.isPartitionKeyMode = true
 		if len(it.PartitionName) > 0 {
+			if Params.ProxyCfg.DelayPartitionKeyCheck {
+				it.delayPartitionKeyCheck = true
+				return nil
+			}
 			return errors.New("not support manually specifying the partition names if partition key mode is used")
 		}
 
@@ -474,6 +481,11 @@ func (it *insertTask) repackInsertDataToMsgPack(ctx context.Context,
 			partition2RowOffsets, err = it.assignPartitionsByKey(ctx, rowOffsets, it.partitionKeys)
 			if err != nil {
 				return nil, err
+			}
+			if it.delayPartitionKeyCheck && len(partition2RowOffsets) == 1 && partition2RowOffsets[it.PartitionName] != nil {
+				log.Warn("the partition name in insert request is not consistent with partition name in collection schema",
+					zap.String("partition", it.PartitionName), zap.Strings("partition2RowOffsets", lo.Keys(partition2RowOffsets)))
+				return nil, errors.New("the partition name in insert request is not consistent with partition name in collection schema")
 			}
 		} else {
 			// 1. The insert request specifies the partition name
