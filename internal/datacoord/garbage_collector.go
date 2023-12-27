@@ -353,6 +353,7 @@ func (gc *garbageCollector) clearEtcd() {
 		return dropIDs[i] < dropIDs[j]
 	})
 
+	log.Info("start to GC segments", zap.Int("drop_num", len(dropIDs)))
 	for _, segmentID := range dropIDs {
 		segment, ok := drops[segmentID]
 		if !ok {
@@ -366,7 +367,10 @@ func (gc *garbageCollector) clearEtcd() {
 		}
 
 		logs := getLogs(segment)
-		log.Info("GC segment", zap.Int64("segmentID", segment.GetID()))
+		log.Info("GC segment", zap.Int64("segmentID", segment.GetID()),
+			zap.Int("insert_logs", len(segment.GetBinlogs())),
+			zap.Int("delta_logs", len(segment.GetDeltalogs())),
+			zap.Int("stats_logs", len(segment.GetStatslogs())))
 		if gc.removeLogs(logs) {
 			err := gc.meta.DropSegment(segment.GetID())
 			if err != nil {
