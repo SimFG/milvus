@@ -1103,6 +1103,21 @@ func (m *meta) copyDeltaFiles(binlogs []*datapb.FieldBinlog, collectionID, parti
 		}
 		ret = append(ret, fieldBinlog)
 	}
+	getLogPaths := func(logs []*datapb.FieldBinlog) []string {
+		r := make([]string, 0, len(logs))
+		for _, l := range logs {
+			if l.GetFieldID() == 100 {
+				r = append(r, lo.Map(l.Binlogs, func(binlog *datapb.Binlog, _ int) string { return binlog.GetLogPath() })...)
+			}
+		}
+		return r
+	}
+	log.Debug("copied delta logs",
+		zap.Strings("sources", getLogPaths(binlogs)),
+		zap.Strings("target", getLogPaths(ret)),
+		zap.Int64("segmentID", targetSegmentID),
+		zap.Int64("collectionID", collectionID),
+		zap.Int64("partitionID", partitionID))
 	return ret, nil
 }
 

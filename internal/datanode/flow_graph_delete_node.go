@@ -22,6 +22,7 @@ import (
 	"reflect"
 
 	"github.com/cockroachdb/errors"
+	"github.com/samber/lo"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
@@ -173,8 +174,21 @@ func (dn *deleteNode) bufferDeleteMsg(msg *msgstream.DeleteMsg, tr TimeRange, st
 		zap.Int("pkNum", typeutil.GetSizeOfIDs(msg.GetPrimaryKeys())),
 		zap.String("vChannelName", dn.channelName))
 
+	getPKs := func(keys []primaryKey) []any {
+		pks := make([]any, 0, len(keys))
+		for _, pk := range keys {
+			pks = append(pks, pk.GetValue())
+		}
+		return pks
+	}
+
 	primaryKeys := storage.ParseIDs2PrimaryKeys(msg.PrimaryKeys)
 	segIDToPks, segIDToTss := dn.filterSegmentByPK(msg.PartitionID, primaryKeys, msg.Timestamps)
+
+	log.Debug("delete pks", zap.Any("pks", getPKs(primaryKeys)))
+	log.Debug("segment id to pks", zap.Any("pks", lo.MapValues(segIDToPks, func(v []primaryKey, k int64) []any {
+		return getPKs(v)
+	})))
 
 	segIDs := make([]UniqueID, 0, len(segIDToPks))
 	for segID, pks := range segIDToPks {
@@ -199,14 +213,26 @@ func (dn *deleteNode) filterSegmentByPK(partID UniqueID, pks []primaryKey, tss [
 	segID2Pks := make(map[UniqueID][]primaryKey)
 	segID2Tss := make(map[UniqueID][]uint64)
 	segments := dn.channel.filterSegments(partID)
+
+	notExistPKS := make([]primaryKey, 0)
 	for index, pk := range pks {
+		var isExist bool
 		for _, segment := range segments {
 			segmentID := segment.segmentID
 			if segment.isPKExist(pk) {
 				segID2Pks[segmentID] = append(segID2Pks[segmentID], pk)
 				segID2Tss[segmentID] = append(segID2Tss[segmentID], tss[index])
+				isExist = true
 			}
 		}
+		if !isExist {
+			notExistPKS = append(notExistPKS, pk)
+		}
+	}
+	if len(notExistPKS) > 0 {
+		log.Info("not exist pks in segments", zap.Int("num", len(notExistPKS)), zap.Any("pks", lo.Map(notExistPKS, func(k primaryKey, _ int) any {
+			return k.GetValue()
+		})))
 	}
 
 	return segID2Pks, segID2Tss

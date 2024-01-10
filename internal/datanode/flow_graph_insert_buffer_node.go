@@ -626,6 +626,14 @@ func (ibNode *insertBufferNode) bufferInsertMsg(msg *msgstream.InsertMsg, startP
 	} else {
 		ibNode.channel.updateSegmentPKRange(currentSegID, addedPfData)
 	}
+	getPKPrintInfo := func(d storage.FieldData) []any {
+		var res []any
+		for i := 0; i < d.RowNum(); i++ {
+			res = append(res, d.GetRow(i))
+		}
+		return res
+	}
+	log.Debug("insert pks in buffer", zap.Int64("segment", msg.GetSegmentID()), zap.Any("pks", getPKPrintInfo(addedPfData)))
 
 	// Maybe there are large write zoom if frequent insert requests are met.
 	storage.MergeInsertData(buffer.buffer, addedBuffer)
