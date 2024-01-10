@@ -138,18 +138,25 @@ func (cit *createIndexTask) parseIndexParams() error {
 	if !isVecIndex {
 		specifyIndexType, exist := indexParamsMap[common.IndexTypeKey]
 		if cit.fieldSchema.DataType == schemapb.DataType_VarChar {
-			if exist && specifyIndexType != DefaultStringIndexType {
-				return fmt.Errorf("can only use 'Trie' when data type is VarChar")
+			if !exist {
+				indexParamsMap[common.IndexTypeKey] = DefaultStringIndexType
 			}
-			indexParamsMap[common.IndexTypeKey] = DefaultStringIndexType
+
+			if exist && !validateStringIndexType(specifyIndexType) {
+				return fmt.Errorf("can only use 'Trie' or 'marisa-trie' when data type is VarChar")
+			}
+		} else if typeutil.IsArithmetic(cit.fieldSchema.DataType) {
+			if !exist {
+				indexParamsMap[common.IndexTypeKey] = DefaultIndexType
+			}
+
+			if exist && !validateArithmeticIndexType(specifyIndexType) {
+				return fmt.Errorf("can only use 'STL_SORT' or 'Asceneding' when is scalar field is arithmetic type")
+			}
+		} else if cit.fieldSchema.DataType == schemapb.DataType_JSON {
+			return fmt.Errorf("create index on json field is not supported")
 		} else {
-			if cit.fieldSchema.DataType == schemapb.DataType_JSON {
-				return fmt.Errorf("create index on json field is not supported")
-			}
-			if exist && specifyIndexType != DefaultIndexType {
-				return fmt.Errorf("can only use 'STL_SORT' when is scalar field except VarChar")
-			}
-			indexParamsMap[common.IndexTypeKey] = DefaultIndexType
+			return fmt.Errorf("unsupported create index on %s type field", cit.fieldSchema.DataType.String())
 		}
 	}
 
