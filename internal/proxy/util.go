@@ -1179,3 +1179,13 @@ func setMsgID(ctx context.Context,
 
 	return nil
 }
+
+func validateStringIndexType(indexType string) bool {
+	// compatible with the index type marisa-trie of attu versions prior to 2.3.0
+	return indexType == DefaultStringIndexType || indexType == "marisa-trie"
+}
+
+func validateArithmeticIndexType(indexType string) bool {
+	// compatible with the index type Asceneding of attu versions prior to 2.3.0
+	return indexType == DefaultIndexType || indexType == "Asceneding"
+}

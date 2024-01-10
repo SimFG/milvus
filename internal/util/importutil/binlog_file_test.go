@@ -893,8 +893,6 @@ func Test_BinlogFileFloatVector(t *testing.T) {
 
 	binlogFile.Close()
 }
-<<<<<<< HEAD
-=======
 
 func Test_BinlogFileFloat16Vector(t *testing.T) {
 	vectors := make([][]byte, 0)
