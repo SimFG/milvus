@@ -404,11 +404,11 @@ dataCoord:
     maxParallelTaskNum: 10 # max parallel compaction task number
     indexBasedCompaction: true
 
-  enableGarbageCollection: false
+  enableGarbageCollection: true
   gc:
-    interval: 360000 # gc interval in seconds
-    missingTolerance: 360000 # file meta missing tolerance duration in seconds, 3600
-    dropTolerance: 1080000 # file belongs to dropped entity tolerance duration in seconds. 10800
+    interval: 3600 # gc interval in seconds
+    missingTolerance: 3600 # file meta missing tolerance duration in seconds, 3600
+    dropTolerance: 10800 # file belongs to dropped entity tolerance duration in seconds. 10800
   enableActiveStandby: false
   # can specify ip for example
   # ip: 127.0.0.1

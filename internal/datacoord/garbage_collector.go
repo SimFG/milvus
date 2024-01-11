@@ -427,6 +427,16 @@ func (gc *garbageCollector) removeLogs(logs []*datapb.Binlog) bool {
 			case <-ctx.Done():
 				return struct{}{}, nil
 			default:
+				dataBytes, bakErr := gc.option.cli.Read(ctx, tmpLog.GetLogPath())
+				if bakErr != nil {
+					log.Warn("read log failed", zap.String("logPath", tmpLog.GetLogPath()), zap.Error(bakErr))
+				} else {
+					bakErr := gc.option.cli.Write(ctx, "bak/"+tmpLog.GetLogPath(), dataBytes)
+					if bakErr != nil {
+						log.Warn("write log failed", zap.String("logPath", "bak/"+tmpLog.GetLogPath()), zap.Error(bakErr))
+					}
+				}
+
 				err := gc.option.cli.Remove(ctx, tmpLog.GetLogPath())
 				if err != nil {
 					switch err.(type) {
