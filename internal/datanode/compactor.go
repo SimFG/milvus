@@ -162,6 +162,9 @@ func (t *compactionTask) mergeDeltalogs(dBlobs map[UniqueID][]*Blob) (map[interf
 		for i := int64(0); i < dData.RowCount; i++ {
 			pk := dData.Pks[i]
 			ts := dData.Tss[i]
+			if lastTS, ok := pk2ts[pk.GetValue()]; ok && lastTS > ts {
+				ts = lastTS
+			}
 
 			pk2ts[pk.GetValue()] = ts
 		}
@@ -525,7 +528,11 @@ func (t *compactionTask) compact() (*datapb.CompactionResult, error) {
 	ti := newTaskInjection(len(segIDs), func(pack *segmentFlushPack) {
 		collectionID := meta.GetID()
 		pack.segmentID = targetSegID
+
+		var injectInsertLogs, injectDeltaLogs, injectStatsLogs []string
+
 		for _, insertLog := range pack.insertLogs {
+			injectInsertLogs = append(injectInsertLogs, insertLog.LogPath)
 			splits := strings.Split(insertLog.LogPath, "/")
 			if len(splits) < 2 {
 				pack.err = fmt.Errorf("bad insert log path: %s", insertLog.LogPath)
@@ -557,6 +564,7 @@ func (t *compactionTask) compact() (*datapb.CompactionResult, error) {
 		}
 
 		for _, deltaLog := range pack.deltaLogs {
+			injectDeltaLogs = append(injectDeltaLogs, deltaLog.LogPath)
 			splits := strings.Split(deltaLog.LogPath, "/")
 			if len(splits) < 1 {
 				pack.err = fmt.Errorf("delta stats log path: %s", deltaLog.LogPath)
@@ -583,6 +591,7 @@ func (t *compactionTask) compact() (*datapb.CompactionResult, error) {
 		}
 
 		for _, statsLog := range pack.statsLogs {
+			injectStatsLogs = append(injectStatsLogs, statsLog.LogPath)
 			splits := strings.Split(statsLog.LogPath, "/")
 			if len(splits) < 2 {
 				pack.err = fmt.Errorf("bad stats log path: %s", statsLog.LogPath)
@@ -613,6 +622,12 @@ func (t *compactionTask) compact() (*datapb.CompactionResult, error) {
 			}
 			statsLog.LogPath = blobPath
 		}
+
+		log.Debug("task injection done",
+			zap.Int64("segmentID", pack.segmentID),
+			zap.Strings("insertLogs", injectInsertLogs),
+			zap.Strings("deltaLogs", injectDeltaLogs),
+			zap.Strings("statsLogs", injectStatsLogs))
 	})
 	defer func() {
 		// the injection will be closed if fail to compact
