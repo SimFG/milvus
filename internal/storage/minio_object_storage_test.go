@@ -132,9 +132,8 @@ func TestMinioObjectStorage(t *testing.T) {
 
 		for _, test := range loadWithPrefixTests {
 			t.Run(test.description, func(t *testing.T) {
-				gotk, _, err := testCM.ListObjects(ctx, config.bucketName, test.prefix, false)
-				assert.NoError(t, err)
-				assert.Equal(t, len(test.expectedValue), len(gotk))
+				objectPathHolderChan := testCM.ListObjects(ctx, config.bucketName, test.prefix, false)
+				gotk := CheckObjectPathHolderChan(t, objectPathHolderChan, false, len(test.expectedValue))
 				for _, key := range gotk {
 					err := testCM.RemoveObject(ctx, config.bucketName, key)
 					assert.NoError(t, err)
@@ -183,9 +182,8 @@ func TestMinioObjectStorage(t *testing.T) {
 
 		for _, test := range insertWithPrefixTests {
 			t.Run(fmt.Sprintf("prefix: %s, recursive: %t", test.prefix, test.recursive), func(t *testing.T) {
-				gotk, _, err := testCM.ListObjects(ctx, config.bucketName, test.prefix, test.recursive)
-				assert.NoError(t, err)
-				assert.Equal(t, len(test.expectedValue), len(gotk))
+				objectPathHolderChan := testCM.ListObjects(ctx, config.bucketName, test.prefix, test.recursive)
+				gotk := CheckObjectPathHolderChan(t, objectPathHolderChan, false, len(test.expectedValue))
 				for _, key := range gotk {
 					assert.Contains(t, test.expectedValue, key)
 				}

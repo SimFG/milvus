@@ -18,7 +18,6 @@ package storage
 
 import (
 	"bytes"
-	"container/list"
 	"context"
 	"io"
 	"strings"
@@ -33,6 +32,7 @@ import (
 	"github.com/milvus-io/milvus/pkg/log"
 	"github.com/milvus-io/milvus/pkg/metrics"
 	"github.com/milvus-io/milvus/pkg/util/merr"
+	"github.com/milvus-io/milvus/pkg/util/paramtable"
 	"github.com/milvus-io/milvus/pkg/util/retry"
 	"github.com/milvus-io/milvus/pkg/util/timerecord"
 )
@@ -210,31 +210,27 @@ func (mcm *MinioChunkManager) Read(ctx context.Context, filePath string) ([]byte
 	return data, nil
 }
 
-func (mcm *MinioChunkManager) MultiRead(ctx context.Context, keys []string) ([][]byte, error) {
-	errors := make([]error, 0)
-	var objectsValues [][]byte
-	for _, key := range keys {
-		objectValue, err := mcm.Read(ctx, key)
-		if err != nil {
-			errors = append(errors, err)
+func (mcm *MinioChunkManager) MultiRead(ctx context.Context, keys []string) <-chan ObjectDataHolder {
+	dataHolderChan := make(chan ObjectDataHolder, paramtable.Get().CommonCfg.PullObjectBatchSize.GetAsInt())
+	go func() {
+		defer close(dataHolderChan)
+		for _, key := range keys {
+			objectValue, err := mcm.Read(ctx, key)
+			if err != nil {
+				dataHolderChan <- ObjectDataHolder{
+					Path: key,
+					Err:  err,
+				}
+				continue
+			}
+			dataHolderChan <- ObjectDataHolder{
+				Path: key,
+				Data: objectValue,
+			}
 		}
-		objectsValues = append(objectsValues, objectValue)
-	}
+	}()
 
-	return objectsValues, merr.Combine(errors...)
-}
-
-func (mcm *MinioChunkManager) ReadWithPrefix(ctx context.Context, prefix string) ([]string, [][]byte, error) {
-	objectsKeys, _, err := mcm.ListWithPrefix(ctx, prefix, true)
-	if err != nil {
-		return nil, nil, err
-	}
-	objectsValues, err := mcm.MultiRead(ctx, objectsKeys)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return objectsKeys, objectsValues, nil
+	return dataHolderChan
 }
 
 func (mcm *MinioChunkManager) Mmap(ctx context.Context, filePath string) (*mmap.ReaderAt, error) {
@@ -333,46 +329,39 @@ func (mcm *MinioChunkManager) RemoveWithPrefix(ctx context.Context, prefix strin
 // say minio has followinng objects: [a, ab, a/b, ab/c]
 // calling `ListWithPrefix` with `prefix` = a && `recursive` = false will only returns [a, ab]
 // If caller needs all objects without level limitation, `recursive` shall be true.
-func (mcm *MinioChunkManager) ListWithPrefix(ctx context.Context, prefix string, recursive bool) ([]string, []time.Time, error) {
-	// cannot use ListObjects(ctx, bucketName, Opt{Prefix:prefix, Recursive:true})
-	// if minio has lots of objects under the provided path
-	// recursive = true may timeout during the recursive browsing the objects.
-	// See also: https://github.com/milvus-io/milvus/issues/19095
+func (mcm *MinioChunkManager) ListWithPrefix(ctx context.Context, prefix string, recursive bool) <-chan ObjectPathHolder {
+	batchSize := paramtable.Get().CommonCfg.PullObjectBatchSize.GetAsInt()
+	pathHolderChan := make(chan ObjectPathHolder, batchSize)
 
-	var objectsKeys []string
-	var modTimes []time.Time
+	go func() {
+		defer close(pathHolderChan)
 
-	tasks := list.New()
-	tasks.PushBack(prefix)
-	for tasks.Len() > 0 {
-		e := tasks.Front()
-		pre := e.Value.(string)
-		tasks.Remove(e)
-
-		// TODO add concurrent call if performance matters
-		// only return current level per call
-		objects := mcm.listMinioObjects(ctx, mcm.bucketName, minio.ListObjectsOptions{Prefix: pre, Recursive: false})
+		objects := mcm.listMinioObjects(ctx, mcm.bucketName, minio.ListObjectsOptions{
+			Prefix:    prefix,
+			Recursive: recursive,
+		})
 
 		for object := range objects {
 			if object.Err != nil {
 				log.Warn("failed to list with prefix", zap.String("bucket", mcm.bucketName), zap.String("prefix", prefix), zap.Error(object.Err))
-				return nil, nil, object.Err
+				pathHolderChan <- ObjectPathHolder{
+					Path: object.Key,
+					Err:  object.Err,
+				}
+				return
 			}
 
 			// with tailing "/", object is a "directory"
-			if strings.HasSuffix(object.Key, "/") && recursive {
-				// enqueue when recursive is true
-				if object.Key != pre {
-					tasks.PushBack(object.Key)
-				}
-				continue
+			isDir := strings.HasSuffix(object.Key, "/")
+			pathHolderChan <- ObjectPathHolder{
+				Path:    object.Key,
+				ModTime: object.LastModified,
+				ISDir:   isDir,
 			}
-			objectsKeys = append(objectsKeys, object.Key)
-			modTimes = append(modTimes, object.LastModified)
 		}
-	}
+	}()
 
-	return objectsKeys, modTimes, nil
+	return pathHolderChan
 }
 
 // Learn from file.ReadFile

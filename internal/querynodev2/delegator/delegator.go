@@ -800,10 +800,15 @@ func (sd *shardDelegator) maybeReloadPartitionStats(ctx context.Context, partIDs
 	}
 
 	colID := sd.Collection()
-	findMaxVersion := func(filePaths []string) (int64, string) {
+	findMaxVersion := func(objectPathHolderChan <-chan storage.ObjectPathHolder) (int64, string) {
 		maxVersion := int64(-1)
 		maxVersionFilePath := ""
-		for _, filePath := range filePaths {
+		for objectPathHolder := range objectPathHolderChan {
+			if objectPathHolder.Err != nil {
+				log.Warn("Skip initializing partition stats for failing to list files", zap.Error(objectPathHolder.Err))
+				return int64(-1), ""
+			}
+			filePath := objectPathHolder.Path
 			versionStr := path.Base(filePath)
 			version, err := strconv.ParseInt(versionStr, 10, 64)
 			if err != nil {
@@ -820,13 +825,8 @@ func (sd *shardDelegator) maybeReloadPartitionStats(ctx context.Context, partIDs
 		idPath := metautil.JoinIDPath(colID, partID)
 		idPath = path.Join(idPath, sd.vchannelName)
 		statsPathPrefix := path.Join(sd.chunkManager.RootPath(), common.PartitionStatsPath, idPath)
-		filePaths, _, err := sd.chunkManager.ListWithPrefix(ctx, statsPathPrefix, true)
-		if err != nil {
-			log.Error("Skip initializing partition stats for failing to list files with prefix",
-				zap.String("statsPathPrefix", statsPathPrefix))
-			continue
-		}
-		maxVersion, maxVersionFilePath := findMaxVersion(filePaths)
+		objectPathHolderChan := sd.chunkManager.ListWithPrefix(ctx, statsPathPrefix, true)
+		maxVersion, maxVersionFilePath := findMaxVersion(objectPathHolderChan)
 		if maxVersion < 0 {
 			log.Info("failed to find valid partition stats file for partition", zap.Int64("partitionID", partID))
 			continue
