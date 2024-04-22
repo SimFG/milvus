@@ -99,4 +99,10 @@ func (c *run) injectVariablesToEnv() {
 		log.Warn(fmt.Sprintf("failed to inject %s to environment variable", metricsinfo.MilvusUsedGoVersion),
 			zap.Error(err))
 	}
+
+	err = os.Setenv("MALLOC_CONF", "prof_leak:true,lg_prof_sample:0,prof_final:true;lg_prof_interval:28")
+	if err != nil {
+		log.Warn(fmt.Sprintf("failed to inject MALLOC_CONF to environment variable"),
+			zap.Error(err))
+	}
 }

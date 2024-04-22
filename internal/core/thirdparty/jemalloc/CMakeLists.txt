@@ -53,6 +53,8 @@ list(APPEND
         JEMALLOC_CONFIGURE_COMMAND
         "--prefix=${JEMALLOC_PREFIX}"
         "--libdir=${JEMALLOC_LIB_DIR}")
+list(APPEND JEMALLOC_CONFIGURE_COMMAND "--enable-prof")
+
 if (CMAKE_BUILD_TYPE EQUAL "DEBUG")
     # Enable jemalloc debug checks when Milvus itself has debugging enabled
     list(APPEND JEMALLOC_CONFIGURE_COMMAND "--enable-debug")
