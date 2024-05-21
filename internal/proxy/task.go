@@ -735,6 +735,7 @@ func (t *showCollectionsTask) PreExecute(ctx context.Context) error {
 
 func (t *showCollectionsTask) Execute(ctx context.Context) error {
 	ctx = AppendUserInfoForRPC(ctx)
+	log.Info("show collection task", zap.String("database", t.ShowCollectionsRequest.GetDbName()))
 	respFromRootCoord, err := t.rootCoord.ShowCollections(ctx, t.ShowCollectionsRequest)
 	if err != nil {
 		return err

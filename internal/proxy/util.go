@@ -903,6 +903,7 @@ func NewContextWithMetadata(ctx context.Context, username string, dbName string)
 
 func AppendUserInfoForRPC(ctx context.Context) context.Context {
 	curUser, _ := GetCurUserFromContext(ctx)
+	log.Info("append user info for rpc", zap.String("username", curUser))
 	if curUser != "" {
 		originValue := fmt.Sprintf("%s%s%s", curUser, util.CredentialSeperator, curUser)
 		authKey := strings.ToLower(util.HeaderAuthorize)

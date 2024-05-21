@@ -24,6 +24,7 @@ import (
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/milvuspb"
+	"github.com/milvus-io/milvus/internal/metastore/model"
 	"github.com/milvus-io/milvus/pkg/log"
 	"github.com/milvus-io/milvus/pkg/util"
 	"github.com/milvus-io/milvus/pkg/util/contextutil"
@@ -52,12 +53,14 @@ func (t *showCollectionTask) Execute(ctx context.Context) error {
 
 	getVisibleCollections := func() (typeutil.Set[string], error) {
 		enableAuth := Params.CommonCfg.AuthorizationEnabled.GetAsBool()
+		log.Info("show collection: enable auth", zap.Bool("enable", enableAuth))
 		privilegeColls := typeutil.NewSet[string]()
 		if !enableAuth {
 			privilegeColls.Insert(util.AnyWord)
 			return privilegeColls, nil
 		}
 		curUser, err := contextutil.GetCurUserFromContext(ctx)
+		log.Info("show collection: get current user", zap.String("user", curUser))
 		if err != nil || curUser == util.UserRoot {
 			if err != nil {
 				log.Warn("get current user from context failed", zap.Error(err))
@@ -68,6 +71,7 @@ func (t *showCollectionTask) Execute(ctx context.Context) error {
 		userRoles, err := t.core.meta.SelectUser("", &milvuspb.UserEntity{
 			Name: curUser,
 		}, true)
+		log.Info("show collection: get user roles", zap.Any("roles", userRoles), zap.Error(err))
 		if err != nil {
 			return nil, err
 		}
@@ -83,6 +87,8 @@ func (t *showCollectionTask) Execute(ctx context.Context) error {
 				Role:   role,
 				DbName: t.Req.GetDbName(),
 			})
+			log.Info("show collection: get grant entities",
+				zap.String("role", role.GetName()), zap.Any("entities", entities), zap.Error(err))
 			if err != nil {
 				return nil, err
 			}
@@ -114,6 +120,9 @@ func (t *showCollectionTask) Execute(ctx context.Context) error {
 	}
 
 	visibleCollections, err := getVisibleCollections()
+	log.Info("show collection: get visible collections",
+		zap.String("db_name", t.Req.GetDbName()),
+		zap.Any("collections", visibleCollections), zap.Error(err))
 	if err != nil {
 		t.Rsp.Status = merr.Status(err)
 		return err
@@ -127,6 +136,9 @@ func (t *showCollectionTask) Execute(ctx context.Context) error {
 		ts = typeutil.MaxTimestamp
 	}
 	colls, err := t.core.meta.ListCollections(ctx, t.Req.GetDbName(), ts, true)
+	log.Info("show collection: list collections", zap.Any("collections", lo.Map(colls, func(t *model.Collection, i int) string {
+		return t.Name
+	})), zap.Error(err))
 	if err != nil {
 		t.Rsp.Status = merr.Status(err)
 		return err
