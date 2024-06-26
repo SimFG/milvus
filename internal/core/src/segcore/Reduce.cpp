@@ -221,6 +221,7 @@ ReduceHelper::FillEntryData() {
         auto segment = static_cast<milvus::segcore::SegmentInterface*>(
             search_result->segment_);
         segment->FillTargetEntry(plan_, *search_result);
+        LOG_INFO("segment id: {}, result size: {}", segment->get_segment_id(), search_result->get_total_result_count());
     }
 }
 
