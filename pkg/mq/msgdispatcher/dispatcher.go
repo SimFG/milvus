@@ -160,7 +160,8 @@ func (d *Dispatcher) GetTarget(vchannel string) (*target, error) {
 func (d *Dispatcher) CloseTarget(vchannel string) {
 	log := log.With(zap.String("vchannel", vchannel), zap.Bool("isMain", d.isMain))
 	if t, ok := d.targets[vchannel]; ok {
-		go t.close()
+		// go t.close()
+		t.close()
 		delete(d.targets, vchannel)
 		log.Info("closed target")
 	} else {
