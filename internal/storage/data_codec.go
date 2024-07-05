@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/apache/arrow/go/v12/arrow"
 	"github.com/samber/lo"
 	"github.com/valyala/fastjson"
 
@@ -1063,8 +1064,7 @@ func (deleteCodec *DeleteCodec) Deserialize(blobs []*Blob) (partitionID UniqueID
 		var p fastjson.Parser
 		deleteLog := &DeleteLog{}
 
-		for rr.Next() {
-			rec := rr.Record()
+		handleRecord := func(rec arrow.Record) error {
 			defer rec.Release()
 			column := rec.Column(0)
 			for i := 0; i < column.Len(); i++ {
@@ -1103,6 +1103,14 @@ func (deleteCodec *DeleteCodec) Deserialize(blobs []*Blob) (partitionID UniqueID
 				}
 
 				result.Append(deleteLog.Pk, deleteLog.Ts)
+			}
+			return nil
+		}
+
+		for rr.Next() {
+			rec := rr.Record()
+			if err := handleRecord(rec); err != nil {
+				return err
 			}
 		}
 		return nil

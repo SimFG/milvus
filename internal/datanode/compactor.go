@@ -235,6 +235,7 @@ func (t *compactionTask) merge(
 		numBinlogs int   // binlog number
 		numRows    int64 // the number of rows uploaded
 		expired    int64 // the number of expired entity
+		deleted    int64
 
 		insertField2Path = make(map[UniqueID]*datapb.FieldBinlog)
 		insertPaths      = make([]*datapb.FieldBinlog, 0)
@@ -352,6 +353,7 @@ func (t *compactionTask) merge(
 			}
 			v := iter.Value()
 			if isDeletedValue(v) {
+				deleted++
 				continue
 			}
 
@@ -418,7 +420,7 @@ func (t *compactionTask) merge(
 		uploadInsertTimeCost += time.Since(uploadStart)
 		addInsertFieldPath(inPaths, timestampFrom, timestampTo)
 		addStatFieldPath(statsPaths)
-		numBinlogs += len(inPaths)
+		numBinlogs++
 	}
 
 	for _, path := range insertField2Path {
@@ -431,7 +433,9 @@ func (t *compactionTask) merge(
 
 	log.Info("compact merge end",
 		zap.Int64("remaining insert numRows", numRows),
+		zap.Int64("deleted entities", deleted),
 		zap.Int64("expired entities", expired),
+		zap.Int("delta pk2ts size", len(delta)),
 		zap.Int("binlog file number", numBinlogs),
 		zap.Duration("download insert log elapse", downloadTimeCost),
 		zap.Duration("upload insert log elapse", uploadInsertTimeCost),
