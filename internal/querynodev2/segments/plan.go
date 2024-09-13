@@ -31,8 +31,10 @@ import (
 	"unsafe"
 
 	"github.com/cockroachdb/errors"
+	"go.uber.org/zap"
 
 	"github.com/milvus-io/milvus/internal/proto/querypb"
+	"github.com/milvus-io/milvus/pkg/log"
 	"github.com/milvus-io/milvus/pkg/util/merr"
 	. "github.com/milvus-io/milvus/pkg/util/typeutil"
 )
@@ -56,8 +58,10 @@ func createSearchPlanByExpr(ctx context.Context, col *Collection, expr []byte, m
 
 	newPlan := &SearchPlan{cSearchPlan: cPlan}
 	if len(metricType) != 0 {
+		log.Ctx(ctx).Info("set metric type 1 simfg", zap.Any("metricType", metricType))
 		newPlan.setMetricType(metricType)
 	} else {
+		log.Ctx(ctx).Info("set metric type 2 simfg", zap.Any("metricType", col.GetMetricType()))
 		newPlan.setMetricType(col.GetMetricType())
 	}
 	return newPlan, nil

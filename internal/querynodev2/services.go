@@ -251,6 +251,9 @@ func (node *QueryNode) WatchDmChannels(ctx context.Context, req *querypb.WatchDm
 		return merr.Success(), nil
 	}
 
+	log.Info("watch dm channel simfg",
+		zap.Any("metric type", req.GetLoadMeta().GetMetricType()),
+		zap.Any("index info list", req.GetIndexInfoList()))
 	node.manager.Collection.PutOrRef(req.GetCollectionID(), req.GetSchema(),
 		node.composeIndexMeta(req.GetIndexInfoList(), req.Schema), req.GetLoadMeta())
 	defer func() {
@@ -480,6 +483,9 @@ func (node *QueryNode) LoadSegments(ctx context.Context, req *querypb.LoadSegmen
 		return node.loadIndex(ctx, req), nil
 	}
 
+	log.Info("load segment simfg",
+		zap.Any("metric type", req.GetLoadMeta().GetMetricType()),
+		zap.Any("index info list", req.GetIndexInfoList()))
 	node.manager.Collection.PutOrRef(req.GetCollectionID(), req.GetSchema(),
 		node.composeIndexMeta(req.GetIndexInfoList(), req.GetSchema()), req.GetLoadMeta())
 	defer node.manager.Collection.Unref(req.GetCollectionID(), 1)

@@ -18,20 +18,27 @@ package observers
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
+	"github.com/samber/lo"
 	"go.uber.org/zap"
 
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
+	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
+	"github.com/milvus-io/milvus/internal/proto/indexpb"
 	"github.com/milvus-io/milvus/internal/proto/querypb"
 	"github.com/milvus-io/milvus/internal/querycoordv2/meta"
 	"github.com/milvus-io/milvus/internal/querycoordv2/session"
 	task2 "github.com/milvus-io/milvus/internal/querycoordv2/task"
 	"github.com/milvus-io/milvus/internal/querycoordv2/utils"
+	"github.com/milvus-io/milvus/pkg/common"
 	"github.com/milvus-io/milvus/pkg/log"
 	"github.com/milvus-io/milvus/pkg/util/commonpbutil"
+	"github.com/milvus-io/milvus/pkg/util/funcutil"
 	"github.com/milvus-io/milvus/pkg/util/paramtable"
+	"github.com/milvus-io/milvus/pkg/util/typeutil"
 )
 
 // LeaderObserver is to sync the distribution with leader
@@ -245,6 +252,12 @@ func (o *LeaderObserver) sync(ctx context.Context, replicaID int64, leaderView *
 		return false
 	}
 
+	metricType, err := getMetricType(indexInfo, schema)
+	if err != nil {
+		log.Warn("failed to get metric type", zap.Error(err))
+		return false
+	}
+
 	partitions, err := utils.GetPartitions(o.meta.CollectionManager, leaderView.CollectionID)
 	if err != nil {
 		log.Warn("sync distribution failed, cannot get partitions of collection", zap.Error(err))
@@ -264,6 +277,7 @@ func (o *LeaderObserver) sync(ctx context.Context, replicaID int64, leaderView *
 			LoadType:     o.meta.GetLoadType(leaderView.CollectionID),
 			CollectionID: leaderView.CollectionID,
 			PartitionIDs: partitions,
+			MetricType:   metricType,
 		},
 		Version:       time.Now().UnixNano(),
 		IndexInfoList: indexInfo,
@@ -282,6 +296,25 @@ func (o *LeaderObserver) sync(ctx context.Context, replicaID int64, leaderView *
 	}
 
 	return true
+}
+
+func getMetricType(indexInfos []*indexpb.IndexInfo, schema *schemapb.CollectionSchema) (string, error) {
+	vecField, err := typeutil.GetVectorFieldSchema(schema)
+	if err != nil {
+		return "", err
+	}
+	indexInfo, ok := lo.Find(indexInfos, func(info *indexpb.IndexInfo) bool {
+		return info.GetFieldID() == vecField.GetFieldID()
+	})
+	if !ok || indexInfo == nil {
+		err = fmt.Errorf("cannot find index info for %s field", vecField.GetName())
+		return "", err
+	}
+	metricType, err := funcutil.GetAttrByKeyFromRepeatedKV(common.MetricTypeKey, indexInfo.GetIndexParams())
+	if err != nil {
+		return "", err
+	}
+	return metricType, nil
 }
 
 func NewLeaderObserver(

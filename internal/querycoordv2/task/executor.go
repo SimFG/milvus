@@ -189,13 +189,6 @@ func (ex *Executor) loadSegment(task *SegmentTask, step int) error {
 		return err
 	}
 
-	loadMeta := packLoadMeta(
-		ex.meta.GetLoadType(task.CollectionID()),
-		"",
-		task.CollectionID(),
-		partitions...,
-	)
-
 	// get channel first, in case of target updated after segment info fetched
 	channel := ex.targetMgr.GetDmChannel(task.CollectionID(), task.shard, meta.NextTargetFirst)
 	if channel == nil {
@@ -225,6 +218,19 @@ func (ex *Executor) loadSegment(task *SegmentTask, step int) error {
 		log.Warn("fail to get index meta of collection")
 		return err
 	}
+
+	metricType, err := getMetricType(indexInfo, schema)
+	if err != nil {
+		log.Warn("failed to get metric type", zap.Error(err))
+		return err
+	}
+
+	loadMeta := packLoadMeta(
+		ex.meta.GetLoadType(task.CollectionID()),
+		metricType,
+		task.CollectionID(),
+		partitions...,
+	)
 
 	req := packLoadSegmentRequest(
 		task,

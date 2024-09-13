@@ -662,12 +662,17 @@ SegmentSealedImpl::vector_search(SearchInfo& search_info,
 
     AssertInfo(field_meta.is_vector(),
                "The meta type of vector field is not vector type");
+    LOG_SEGCORE_INFO_ << "vector_search, request, simfg "
+                      << "metric_type:" << search_info.metric_type_;
     if (get_bit(binlog_index_bitset_, field_id)) {
         AssertInfo(
             vec_binlog_config_.find(field_id) != vec_binlog_config_.end(),
             "The binlog params is not generate.");
         auto binlog_search_info =
             vec_binlog_config_.at(field_id)->GetSearchConf(search_info);
+
+        LOG_SEGCORE_INFO_ << "vector search, execute1, simfg "
+                          << "metric_type:" << binlog_search_info.metric_type_;
 
         AssertInfo(vector_indexings_.is_ready(field_id),
                    "vector indexes isn't ready for field " +
@@ -685,6 +690,8 @@ SegmentSealedImpl::vector_search(SearchInfo& search_info,
         AssertInfo(vector_indexings_.is_ready(field_id),
                    "vector indexes isn't ready for field " +
                        std::to_string(field_id.get()));
+        LOG_SEGCORE_INFO_ << "vector search, execute2, simfg "
+                          << "metric_type:" << search_info.metric_type_;
         query::SearchOnSealedIndex(*schema_,
                                    vector_indexings_,
                                    search_info,
@@ -698,6 +705,8 @@ SegmentSealedImpl::vector_search(SearchInfo& search_info,
             get_bit(field_data_ready_bitset_, field_id),
             "Field Data is not loaded: " + std::to_string(field_id.get()));
         AssertInfo(num_rows_.has_value(), "Can't get row count value");
+        LOG_SEGCORE_INFO_ << "vector search, execute3, simfg "
+                          << "metric_type:" << search_info.metric_type_;
         auto row_count = num_rows_.value();
         auto vec_data = fields_.at(field_id);
         query::SearchOnSealed(*schema_,

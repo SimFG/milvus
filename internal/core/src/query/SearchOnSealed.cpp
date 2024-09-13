@@ -17,6 +17,7 @@
 #include "query/SearchBruteForce.h"
 #include "query/SearchOnSealed.h"
 #include "query/helper.h"
+#include "log/Log.h"
 
 namespace milvus::query {
 
@@ -39,8 +40,13 @@ SearchOnSealedIndex(const Schema& schema,
     AssertInfo(record.is_ready(field_id), "[SearchOnSealed]Record isn't ready");
     // Keep the field_indexing smart pointer, until all reference by raw dropped.
     auto field_indexing = record.get_field_indexing(field_id);
+    LOG_SEGCORE_INFO_ << "search on sealed index simfg"
+                      << "metric_type:" << search_info.metric_type_;
     AssertInfo(field_indexing->metric_type_ == search_info.metric_type_,
-               "Metric type of field index isn't the same with search info");
+                   "Metric type of field index isn't the same with search info,"
+                   "field index: {}, search info: {}",
+                   field_indexing->metric_type_,
+                   search_info.metric_type_);
 
     auto final = [&] {
         auto ds = knowhere::GenDataSet(num_queries, dim, query_data);
