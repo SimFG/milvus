@@ -115,8 +115,9 @@ func (ccu *channelCheckpointUpdater) updateCheckpoints(tasks []*channelCPUpdateT
 
 	for _, groups := range rpcGroups {
 		wg := &sync.WaitGroup{}
-		for _, tasks := range groups {
+		for _, groupTasks := range groups {
 			wg.Add(1)
+			tmpTasks := groupTasks
 			go func(tasks []*channelCPUpdateTask) {
 				defer wg.Done()
 				timeout := paramtable.Get().DataNodeCfg.UpdateChannelCheckpointRPCTimeout.GetAsDuration(time.Second)
@@ -134,7 +135,7 @@ func (ccu *channelCheckpointUpdater) updateCheckpoints(tasks []*channelCPUpdateT
 					task.callback()
 					finished.Insert(task.pos.GetChannelName(), task)
 				}
-			}(tasks)
+			}(tmpTasks)
 		}
 		wg.Wait()
 	}

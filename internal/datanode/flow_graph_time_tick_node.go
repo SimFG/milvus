@@ -104,7 +104,7 @@ func (ttn *ttNode) Operate(in []Msg) []Msg {
 	}
 
 	if curTs.Sub(ttn.lastUpdateTime.Load()) >= paramtable.Get().DataNodeCfg.UpdateChannelCheckpointInterval.GetAsDuration(time.Second) {
-		ttn.updateChannelCP(channelPos, curTs, false)
+		ttn.updateChannelCP(channelPos, curTs, needUpdate)
 		return []Msg{}
 	}
 	if needUpdate {
