@@ -722,6 +722,10 @@ func (ms *MqTtMsgStream) bufMsgPackToChannel() {
 						} else {
 							tempBuffer = append(tempBuffer, v)
 						}
+						// when drop collection, force to exit the buffer loop
+						if v.Type() == commonpb.MsgType_DropCollection {
+							size += paramtable.Get().ServiceParam.MQCfg.PursuitBufferSize.GetAsUint64()
+						}
 					}
 					ms.chanMsgBuf[consumer] = tempBuffer
 
