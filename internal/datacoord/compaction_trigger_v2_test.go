@@ -13,6 +13,7 @@ import (
 	"github.com/milvus-io/milvus-proto/go-api/v2/commonpb"
 	"github.com/milvus-io/milvus-proto/go-api/v2/schemapb"
 	"github.com/milvus-io/milvus/internal/datacoord/allocator"
+	"github.com/milvus-io/milvus/internal/metastore/mocks"
 	"github.com/milvus-io/milvus/internal/metastore/model"
 	"github.com/milvus-io/milvus/pkg/common"
 	"github.com/milvus-io/milvus/pkg/log"
@@ -32,6 +33,7 @@ type CompactionTriggerManagerSuite struct {
 	mockPlanContext *MockCompactionPlanContext
 	testLabel       *CompactionGroupLabel
 	meta            *meta
+	imeta           ImportMeta
 
 	triggerManager *CompactionTriggerManager
 }
@@ -51,7 +53,13 @@ func (s *CompactionTriggerManagerSuite) SetupTest() {
 	for id, segment := range segments {
 		s.meta.segments.SetSegment(id, segment)
 	}
-
+	catalog := mocks.NewDataCoordCatalog(s.T())
+	catalog.EXPECT().ListPreImportTasks(mock.Anything).Return([]*datapb.PreImportTask{}, nil)
+	catalog.EXPECT().ListImportTasks(mock.Anything).Return([]*datapb.ImportTaskV2{}, nil)
+	catalog.EXPECT().ListImportJobs(mock.Anything).Return([]*datapb.ImportJob{}, nil)
+	importMeta, err := NewImportMeta(context.TODO(), catalog)
+	s.Require().NoError(err)
+	s.imeta = importMeta
 	s.triggerManager = NewCompactionTriggerManager(s.mockAlloc, s.handler, s.mockPlanContext, s.meta)
 }
 

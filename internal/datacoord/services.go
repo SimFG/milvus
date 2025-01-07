@@ -1660,6 +1660,16 @@ func (s *Server) GcControl(ctx context.Context, request *datapb.GcControlRequest
 }
 
 func (s *Server) ImportV2(ctx context.Context, in *internalpb.ImportRequestInternal) (*internalpb.ImportResponse, error) {
+	// TODO fubang
+	// 1. tt
+	// 2. Compatibility issue:
+	// if the received channel is consistent with the schema channel, the meta is stored directly.
+	// Otherwise, it is necessary to wait for each channel to send an import message before the task can be stored.
+	// 3. During l0compaction, although the job may not be started, the import of the entire channel has been received, and subsequent deletes should be fully recorded.
+	// 4. block l0 compaction when setting the import state to normal state
+	// 5. generate l0 import task when l0 compaction is triggered
+	// 6. add data timestamp to ImportRequestInternal obj
+
 	if err := merr.CheckHealthy(s.GetStateCode()); err != nil {
 		return &internalpb.ImportResponse{
 			Status: merr.Status(err),
@@ -1724,15 +1734,28 @@ func (s *Server) ImportV2(ctx context.Context, in *internalpb.ImportRequestInter
 		importFile.Id = idStart + int64(i) + 1
 		return importFile
 	})
+	importCollectionInfo, err := s.handler.GetCollection(ctx, in.GetCollectionID())
+	if err != nil {
+		resp.Status = merr.Status(merr.WrapErrImportFailed(fmt.Sprint("get collection failed, err=%w", err)))
+		return resp, nil
+	}
+	if importCollectionInfo == nil {
+		resp.Status = merr.Status(merr.WrapErrImportFailed(fmt.Sprintf("collection %d not found", in.GetCollectionID())))
+		return resp, nil
+	}
 
+	jobID := in.GetJobID()
+	if jobID == 0 {
+		jobID = idStart
+	}
 	startTime := time.Now()
 	job := &importJob{
 		ImportJob: &datapb.ImportJob{
-			JobID:          idStart,
+			JobID:          jobID,
 			CollectionID:   in.GetCollectionID(),
 			CollectionName: in.GetCollectionName(),
 			PartitionIDs:   in.GetPartitionIDs(),
-			Vchannels:      in.GetChannelNames(),
+			Vchannels:      importCollectionInfo.VChannelNames,
 			Schema:         in.GetSchema(),
 			TimeoutTs:      timeoutTs,
 			CleanupTs:      math.MaxUint64,
@@ -1740,6 +1763,8 @@ func (s *Server) ImportV2(ctx context.Context, in *internalpb.ImportRequestInter
 			Files:          files,
 			Options:        in.GetOptions(),
 			StartTime:      startTime.Format("2006-01-02T15:04:05Z07:00"),
+			ReadyVchannels: in.GetChannelNames(),
+			DataTs:         in.GetDataTimestamp(),
 		},
 		tr: timerecord.NewTimeRecorder("import job"),
 	}
@@ -1750,7 +1775,11 @@ func (s *Server) ImportV2(ctx context.Context, in *internalpb.ImportRequestInter
 	}
 
 	resp.JobID = fmt.Sprint(job.GetJobID())
-	log.Info("add import job done", zap.Int64("jobID", job.GetJobID()), zap.Any("files", files))
+	log.Info("add import job done",
+		zap.Int64("jobID", job.GetJobID()),
+		zap.Any("files", files),
+		zap.Strings("readyChannels", in.GetChannelNames()),
+	)
 	return resp, nil
 }
 

@@ -381,6 +381,7 @@ func (t *l0CompactionTask) saveSegmentMeta() error {
 	}
 
 	for _, segID := range t.GetTaskProto().InputSegments {
+		// TODO fubang if the collection is import data, change the state to is importing
 		operators = append(operators, UpdateStatusOperator(segID, commonpb.SegmentState_Dropped), UpdateCompactedOperator(segID))
 	}
 

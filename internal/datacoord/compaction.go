@@ -60,6 +60,7 @@ type compactionPlanContext interface {
 	getCompactionTasksNumBySignalID(signalID int64) int
 	getCompactionInfo(ctx context.Context, signalID int64) *compactionInfo
 	removeTasksByChannel(channel string)
+	getCompactionTasksNum(filters ...compactionTaskFilter) int
 }
 
 var (
@@ -779,6 +780,45 @@ func (c *compactionPlanHandler) checkDelay(t CompactionTask) {
 			zap.Int64("nodeID", t.GetTaskProto().GetNodeID()),
 			zap.Time("startTime", startTime),
 			zap.Duration("execDuration", execDuration))
+	}
+}
+
+func (c *compactionPlanHandler) getCompactionTasksNum(filters ...compactionTaskFilter) int {
+	cnt := 0
+	isMatch := func(task CompactionTask) bool {
+		for _, f := range filters {
+			if !f(task) {
+				return false
+			}
+		}
+		return true
+	}
+	c.queueTasks.ForEach(func(task CompactionTask) {
+		if isMatch(task) {
+			cnt += 1
+		}
+	})
+	c.executingGuard.RLock()
+	for _, t := range c.executingTasks {
+		if isMatch(t) {
+			cnt += 1
+		}
+	}
+	c.executingGuard.RUnlock()
+	return cnt
+}
+
+type compactionTaskFilter func(task CompactionTask) bool
+
+func CollectionIDCompactionTaskFilter(collectionID int64) compactionTaskFilter {
+	return func(task CompactionTask) bool {
+		return task.GetTaskProto().GetCollectionID() == collectionID
+	}
+}
+
+func L0CompactionCompactionTaskFilter() compactionTaskFilter {
+	return func(task CompactionTask) bool {
+		return task.GetTaskProto().GetType() == datapb.CompactionType_Level0DeleteCompaction
 	}
 }
 

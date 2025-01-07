@@ -74,8 +74,9 @@ func (s *ImportCheckerSuite) SetupTest() {
 	broker := broker2.NewMockBroker(s.T())
 
 	sjm := NewMockStatsJobManager(s.T())
+	l0CompactionTrigger := NewMockTriggerManager(s.T())
 
-	checker := NewImportChecker(meta, broker, cluster, s.alloc, imeta, sjm).(*importChecker)
+	checker := NewImportChecker(meta, broker, cluster, s.alloc, imeta, sjm, l0CompactionTrigger).(*importChecker)
 	s.checker = checker
 
 	job := &importJob{

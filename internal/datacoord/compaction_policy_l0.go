@@ -1,6 +1,8 @@
 package datacoord
 
 import (
+	"sync"
+
 	"github.com/samber/lo"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -14,19 +16,52 @@ type l0CompactionPolicy struct {
 	view *FullViews
 
 	emptyLoopCount *atomic.Int64
+
+	// key: collectionID, value: reference count
+	skipCompactionCollections map[int64]int
+	skipLocker                sync.RWMutex
 }
 
 func newL0CompactionPolicy(meta *meta) *l0CompactionPolicy {
 	return &l0CompactionPolicy{
 		meta: meta,
 		// donot share views with other compaction policy
-		view:           &FullViews{collections: make(map[int64][]*SegmentView)},
-		emptyLoopCount: atomic.NewInt64(0),
+		view:                      &FullViews{collections: make(map[int64][]*SegmentView)},
+		emptyLoopCount:            atomic.NewInt64(0),
+		skipCompactionCollections: make(map[int64]int),
 	}
 }
 
 func (policy *l0CompactionPolicy) Enable() bool {
 	return Params.DataCoordCfg.EnableAutoCompaction.GetAsBool()
+}
+
+func (policy *l0CompactionPolicy) AddSkipCollection(collectionID UniqueID) {
+	policy.skipLocker.Lock()
+	defer policy.skipLocker.Unlock()
+
+	if _, ok := policy.skipCompactionCollections[collectionID]; !ok {
+		policy.skipCompactionCollections[collectionID] = 1
+	} else {
+		policy.skipCompactionCollections[collectionID]++
+	}
+}
+
+func (policy *l0CompactionPolicy) RemoveSkipCollection(collectionID UniqueID) {
+	policy.skipLocker.Lock()
+	defer policy.skipLocker.Unlock()
+	refCount := policy.skipCompactionCollections[collectionID]
+	if refCount > 1 {
+		policy.skipCompactionCollections[collectionID]--
+	} else {
+		delete(policy.skipCompactionCollections, collectionID)
+	}
+}
+
+func (policy *l0CompactionPolicy) isSkipCollection(collectionID UniqueID) bool {
+	policy.skipLocker.RLock()
+	defer policy.skipLocker.RUnlock()
+	return policy.skipCompactionCollections[collectionID] > 0
 }
 
 func (policy *l0CompactionPolicy) Trigger() (map[CompactionTriggerType][]CompactionView, error) {
@@ -69,6 +104,9 @@ func (policy *l0CompactionPolicy) generateEventForLevelZeroViewChange() (events 
 func (policy *l0CompactionPolicy) RefreshLevelZeroViews(latestCollSegs map[int64][]*SegmentInfo) []CompactionView {
 	var allRefreshedL0Veiws []CompactionView
 	for collID, segments := range latestCollSegs {
+		if policy.isSkipCollection(collID) {
+			continue
+		}
 		levelZeroSegments := lo.Filter(segments, func(info *SegmentInfo, _ int) bool {
 			return info.GetLevel() == datapb.SegmentLevel_L0
 		})
@@ -136,6 +174,9 @@ func (policy *l0CompactionPolicy) groupL0ViewsByPartChan(collectionID UniqueID, 
 func (policy *l0CompactionPolicy) generateEventForLevelZeroViewIDLE() map[CompactionTriggerType][]CompactionView {
 	events := make(map[CompactionTriggerType][]CompactionView, 0)
 	for collID := range policy.view.collections {
+		if policy.isSkipCollection(collID) {
+			continue
+		}
 		cachedViews := policy.view.GetSegmentViewBy(collID, func(v *SegmentView) bool {
 			return v.Level == datapb.SegmentLevel_L0
 		})

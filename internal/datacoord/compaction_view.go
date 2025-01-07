@@ -161,6 +161,8 @@ func GetViewsByInfo(segments ...*SegmentInfo) []*SegmentView {
 			MaxRowNum: segment.MaxRowNum,
 			// TODO: set the following
 			// ExpireSize float64
+
+			// TODO fubang file paths and data size
 		}
 	})
 }

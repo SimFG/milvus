@@ -42,12 +42,13 @@ type ImportChecker interface {
 }
 
 type importChecker struct {
-	meta    *meta
-	broker  broker.Broker
-	cluster Cluster
-	alloc   allocator.Allocator
-	imeta   ImportMeta
-	sjm     StatsJobManager
+	meta                *meta
+	broker              broker.Broker
+	cluster             Cluster
+	alloc               allocator.Allocator
+	imeta               ImportMeta
+	sjm                 StatsJobManager
+	l0CompactionTrigger TriggerManager
 
 	closeOnce sync.Once
 	closeChan chan struct{}
@@ -59,15 +60,17 @@ func NewImportChecker(meta *meta,
 	alloc allocator.Allocator,
 	imeta ImportMeta,
 	sjm StatsJobManager,
+	l0CompactionTrigger TriggerManager,
 ) ImportChecker {
 	return &importChecker{
-		meta:      meta,
-		broker:    broker,
-		cluster:   cluster,
-		alloc:     alloc,
-		imeta:     imeta,
-		sjm:       sjm,
-		closeChan: make(chan struct{}),
+		meta:                meta,
+		broker:              broker,
+		cluster:             cluster,
+		alloc:               alloc,
+		imeta:               imeta,
+		sjm:                 sjm,
+		l0CompactionTrigger: l0CompactionTrigger,
+		closeChan:           make(chan struct{}),
 	}
 }
 
@@ -87,6 +90,10 @@ func (c *importChecker) Start() {
 		case <-ticker1.C:
 			jobs := c.imeta.GetJobBy(context.TODO())
 			for _, job := range jobs {
+				if len(job.GetVchannels()) != len(job.GetReadyVchannels()) {
+					// wait for all channels to send signals
+					continue
+				}
 				switch job.GetState() {
 				case internalpb.ImportJobState_Pending:
 					c.checkPendingJob(job)
@@ -259,7 +266,7 @@ func (c *importChecker) checkPreImportingJob(job ImportJob) {
 
 func (c *importChecker) checkImportingJob(job ImportJob) {
 	log := log.With(zap.Int64("jobID", job.GetJobID()))
-	tasks := c.imeta.GetTaskBy(context.TODO(), WithType(ImportTaskType), WithJob(job.GetJobID()))
+	tasks := c.imeta.GetTaskBy(context.TODO(), WithType(ImportTaskType), WithJob(job.GetJobID()), WithRequestSource())
 	for _, t := range tasks {
 		if t.GetState() != datapb.ImportTaskStateV2_Completed {
 			return
@@ -358,6 +365,16 @@ func (c *importChecker) checkIndexBuildingJob(job ImportJob) {
 		}
 		log.Debug("waiting for import segments building index...", zap.Int64s("unindexed", unindexed))
 		return
+	}
+
+	// TODO fubang wait l0 segment import and block l0 compaction
+	c.l0CompactionTrigger.PauseL0SegmentCompacting(job.GetCollectionID())
+	defer c.l0CompactionTrigger.ResumeL0SegmentCompacting(job.GetCollectionID())
+	l0ImportTasks := c.imeta.GetTaskBy(context.TODO(), WithType(ImportTaskType), WithJob(job.GetJobID()), WithL0CompactionSource())
+	for _, t := range l0ImportTasks {
+		if t.GetState() != datapb.ImportTaskStateV2_Completed {
+			return
+		}
 	}
 
 	buildIndexDuration := job.GetTR().RecordSpan()
