@@ -59,6 +59,12 @@ func (iNode *insertNode) addInsertData(insertDatas map[UniqueID]*delegator.Inser
 			},
 		}
 		insertDatas[msg.SegmentID] = iData
+		log.Info("pipeline fetch insert msg for new segment",
+			zap.Int64("collectionID", iNode.collectionID),
+			zap.Int64("segmentID", msg.SegmentID),
+			zap.String("channel", msg.GetShardName()),
+			zap.Int("insertRowNum", int(insertRecord.NumRows)),
+			zap.Uint64("timestamp", msg.BeginTs()))
 	} else {
 		err := typeutil.MergeFieldData(iData.InsertRecord.FieldsData, insertRecord.FieldsData)
 		if err != nil {

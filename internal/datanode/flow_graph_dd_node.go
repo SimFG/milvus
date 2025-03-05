@@ -172,7 +172,7 @@ func (ddn *ddNode) Operate(in []Msg) []Msg {
 			}
 
 			if ddn.tryToFilterSegmentInsertMessages(imsg) {
-				log.Debug("filter insert messages",
+				log.Info("filter insert messages",
 					zap.Int64("filter segmentID", imsg.GetSegmentID()),
 					zap.String("channel", ddn.vChannelName),
 					zap.Uint64("message timestamp", msg.EndTs()),
@@ -194,7 +194,7 @@ func (ddn *ddNode) Operate(in []Msg) []Msg {
 				WithLabelValues(fmt.Sprint(paramtable.GetNodeID()), metrics.InsertLabel).
 				Add(float64(imsg.GetNumRows()))
 
-			log.Debug("DDNode receive insert messages",
+			log.Info("DDNode receive insert messages",
 				zap.Int64("segmentID", imsg.GetSegmentID()),
 				zap.String("channel", ddn.vChannelName),
 				zap.Int("numRows", len(imsg.GetRowIDs())),

@@ -214,6 +214,8 @@ func (c *SegmentChecker) getGrowingSegmentDiff(collectionID int64,
 					if timestampInSegment < timestampInTarget {
 						log.Info("growing segment not exist in target, so release it",
 							zap.Int64("segmentID", segment.GetID()),
+							zap.Uint64("timestampInSegment", timestampInSegment),
+							zap.Uint64("timestampInTarget", timestampInTarget),
 						)
 						toRelease = append(toRelease, segment)
 					}

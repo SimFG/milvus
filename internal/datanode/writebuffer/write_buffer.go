@@ -542,7 +542,11 @@ func (wb *writeBufferBase) bufferInsert(inData *inData, startPos, endPos *msgpb.
 		}, func(_ *datapb.SegmentInfo) *metacache.BloomFilterSet {
 			return metacache.NewBloomFilterSetWithBatchSize(wb.getEstBatchSize())
 		}, metacache.SetStartPosRecorded(false))
-		log.Info("add growing segment", zap.Int64("segmentID", inData.segmentID), zap.String("channel", wb.channelName))
+		log.Info("add growing segment",
+			zap.Int64("segmentID", inData.segmentID),
+			zap.String("channel", wb.channelName),
+			zap.Uint64("startPosTS", startPos.GetTimestamp()),
+		)
 	}
 
 	segBuf := wb.getOrCreateBuffer(inData.segmentID)

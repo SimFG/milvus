@@ -115,6 +115,13 @@ func (sd *shardDelegator) ProcessInsert(insertRecords map[int64]*InsertData) {
 				panic(err)
 			}
 			newGrowingSegment = true
+			log.Info("create new growing segment",
+				zap.Int64("collectionID", sd.collectionID),
+				zap.Int64("partitionID", insertData.PartitionID),
+				zap.Int64("segmentID", segmentID),
+				zap.String("vchannel", sd.vchannelName),
+				zap.Int("rowCount", len(insertData.RowIDs)),
+				zap.Uint64("startTs", insertData.StartPosition.Timestamp))
 		}
 
 		err := growing.Insert(context.Background(), insertData.RowIDs, insertData.Timestamps, insertData.InsertRecord)
@@ -157,7 +164,7 @@ func (sd *shardDelegator) ProcessInsert(insertRecords map[int64]*InsertData) {
 			sd.growingSegmentLock.Unlock()
 		}
 
-		log.Debug("insert into growing segment",
+		log.Info("insert into growing segment",
 			zap.Int64("collectionID", growing.Collection()),
 			zap.Int64("segmentID", segmentID),
 			zap.Int("rowCount", len(insertData.RowIDs)),
