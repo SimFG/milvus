@@ -116,6 +116,7 @@ func NewDispatcher(
 			return nil, err
 		}
 		log.Info("as consumer done", zap.Any("position", position))
+		// TODO fubang include msg param is error
 		err = stream.Seek(ctx, []*Pos{position}, false)
 		if err != nil {
 			log.Error("seek failed", zap.Error(err))
