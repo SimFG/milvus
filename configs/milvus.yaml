@@ -19,7 +19,7 @@ etcd:
   # Endpoints used to access etcd service. You can change this parameter as the endpoints of your own etcd cluster.
   # Environment variable: ETCD_ENDPOINTS
   # etcd preferentially acquires valid address from environment variable ETCD_ENDPOINTS when Milvus is started.
-  endpoints: localhost:2379
+  endpoints: localhost:12379
   # Root prefix of the key to where Milvus stores data in etcd.
   # It is recommended to change this parameter before starting Milvus for the first time.
   # To share an etcd instance among multiple Milvus instances, consider changing this to a different value for each Milvus instance before you start them.

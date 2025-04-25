@@ -362,6 +362,44 @@ func (s *proxyTestServer) gracefulStop() {
 	}
 }
 
+const (
+	dataSize = 10 * 1024 * 1024 // 10MB
+)
+
+func BenchmarkBinaryWriteBytes10MB(b *testing.B) {
+	var buf bytes.Buffer
+	data := make([]byte, dataSize)
+	for i := 0; i < dataSize; i++ {
+		data[i] = byte(i % 256) // 填充一些数据
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		err := binary.Write(&buf, binary.BigEndian, data)
+		if err != nil {
+			b.Fatalf("binary.Write failed: %v", err)
+		}
+	}
+}
+
+func BenchmarkBinaryWriteBytesLittleEndian10MB(b *testing.B) {
+	var buf bytes.Buffer
+	data := make([]byte, dataSize)
+	for i := 0; i < dataSize; i++ {
+		data[i] = byte(i % 256) // 填充一些数据
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		buf.Reset()
+		err := binary.Write(&buf, binary.LittleEndian, data)
+		if err != nil {
+			b.Fatalf("binary.Write failed: %v", err)
+		}
+	}
+}
+
 func TestProxy(t *testing.T) {
 	var err error
 	var wg sync.WaitGroup

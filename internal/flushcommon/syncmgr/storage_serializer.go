@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"time"
 
 	"github.com/samber/lo"
 	"go.uber.org/zap"
@@ -183,7 +184,18 @@ func (s *storageV1Serializer) setTaskMeta(task *SyncTask, pack *SyncPack) {
 
 func (s *storageV1Serializer) serializeBinlog(ctx context.Context, pack *SyncPack) (map[int64]*storage.Blob, error) {
 	log := log.Ctx(ctx)
+	startTime := time.Now()
+	log.Info("serializeBinlog timecost start")
 	blobs, err := s.inCodec.Serialize(pack.partitionID, pack.segmentID, pack.insertData...)
+	size := 0
+	rowNum := 0
+	for _, blob := range blobs {
+		size += int(blob.GetMemorySize())
+		if blob.RowNum > 0 {
+			rowNum = int(blob.RowNum)
+		}
+	}
+	log.Info("serializeBinlog timecost end", zap.Duration("duration", time.Since(startTime)), zap.Int("totalSize", size), zap.Int("rowNum", rowNum))
 	if err != nil {
 		return nil, err
 	}
